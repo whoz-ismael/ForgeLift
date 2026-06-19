@@ -117,7 +117,20 @@ check("theme persisted (light)", $("#app").getAttribute("data-theme") === "light
 
   click('[data-action="open-settings"]');
   click('[data-action="export-backup"]');
-  check("export reports success", /BACKUP DOWNLOADED/.test($("#app").textContent));
+  check("export falls back to download when share unsupported", /BACKUP DOWNLOADED/.test($("#app").textContent));
+
+  // share-sheet path (iOS "Save to Files → iCloud Drive")
+  let shared = null;
+  Object.defineProperty(window.navigator, "canShare", { value: () => true, configurable: true });
+  Object.defineProperty(window.navigator, "share", { value: (d) => { shared = d; return Promise.resolve(); }, configurable: true });
+  click('[data-action="export-backup"]');
+  await wait(10);
+  check("share sheet invoked with one file", !!(shared && shared.files && shared.files.length === 1));
+  check("shared backup is the current user's data", /Smith Machine/.test(await shared.files[0].text()));
+  check("share success reported", /BACKUP SHARED/.test($("#app").textContent));
+  // restore download-only behavior for the remaining checks
+  delete window.navigator.share;
+  delete window.navigator.canShare;
 
   // switch to a fresh second account
   click('[data-action="logout"]');

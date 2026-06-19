@@ -43,8 +43,10 @@ Log in with **any username + any 4-digit PIN**. A new name seeds a demo account 
 
 In **Settings → Data & Backup**:
 
-- **Export** downloads `forgelift-<user>-<date>.json` containing your machines, history, unit and theme.
-- **Restore** reads such a file back and replaces the current account's data (asks for confirmation first; invalid files are rejected).
+- **Export** saves `forgelift-<user>-<date>.json` containing your machines, history, unit and theme.
+  - On **iPhone/iPad**, Export opens the iOS share sheet — choose **Save to Files → iCloud Drive** and Apple syncs the backup across your devices (closest thing to a WhatsApp-style iCloud backup from a web app; the *when* is manual, the cross-device sync is automatic). Uses the [Web Share API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Share_API).
+  - On **desktop / Android / unsupported browsers**, it falls back to a normal file download.
+- **Restore** reads a backup file back and replaces the current account's data (asks for confirmation first; invalid files are rejected). On iOS the file picker can browse iCloud Drive, so you can restore the same file on another device.
 
 Backups are plain JSON, so they're easy to inspect, archive, or sync yourself.
 

@@ -179,22 +179,57 @@
     return out;
   }
 
+  function downloadBackup(json, filename) {
+    var blob = new Blob([json], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 1000);
+  }
+
   function exportBackup() {
+    var json, filename;
     try {
       var payload = {
         app: "ForgeLift", version: 1, user: state.user, exportedAt: new Date().toISOString(),
         data: { machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme },
       };
-      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
+      json = JSON.stringify(payload, null, 2);
       var slug = (state.user || "backup").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
-      a.href = url;
-      a.download = "forgelift-" + slug + "-" + new Date().toISOString().slice(0, 10) + ".json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 1000);
+      filename = "forgelift-" + slug + "-" + new Date().toISOString().slice(0, 10) + ".json";
+    } catch (e) {
+      setState({ settingsMsg: "EXPORT FAILED", settingsMsgOk: false });
+      return;
+    }
+
+    // Preferred path (iPhone/iPad): open the iOS share sheet so the user can
+    // pick "Save to Files" → iCloud Drive, which Apple then syncs across devices.
+    try {
+      if (navigator.share && navigator.canShare) {
+        var file = new File([json], filename, { type: "application/json" });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: "ForgeLift backup" })
+            .then(function () { setState({ settingsMsg: "BACKUP SHARED · SAVE TO FILES FOR iCLOUD", settingsMsgOk: true }); })
+            .catch(function (err) {
+              if (err && err.name === "AbortError") {
+                setState({ settingsMsg: "EXPORT CANCELLED", settingsMsgOk: false });
+              } else {
+                downloadBackup(json, filename);
+                setState({ settingsMsg: "BACKUP DOWNLOADED", settingsMsgOk: true });
+              }
+            });
+          return;
+        }
+      }
+    } catch (e) { /* fall through to plain download */ }
+
+    // Fallback (desktop / Android / unsupported): normal file download.
+    try {
+      downloadBackup(json, filename);
       setState({ settingsMsg: "BACKUP DOWNLOADED", settingsMsgOk: true });
     } catch (e) {
       setState({ settingsMsg: "EXPORT FAILED", settingsMsgOk: false });
@@ -655,7 +690,7 @@
           '<button data-action="export-backup" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">⤓ Export</button>' +
           '<label class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;text-align:center;display:block;">⤒ Restore<input id="input-restore" type="file" accept="application/json,.json" style="display:none;" /></label>' +
         '</div>' +
-        '<div style="margin-top:9px;font-size:10px;letter-spacing:0.1em;color:var(--muted);line-height:1.5;">Export downloads a .json file. Restore loads one back — keep it safe to move your data between devices.</div>' +
+        '<div style="margin-top:9px;font-size:10px;letter-spacing:0.1em;color:var(--muted);line-height:1.5;">On iPhone, Export opens the share sheet — choose <b style="color:var(--text);font-weight:700;">Save to Files → iCloud Drive</b> and Apple syncs it across your devices. Restore loads a backup back. Elsewhere, Export just downloads the .json.</div>' +
         msg +
         '<div style="height:30px;"></div>' +
         '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Account</div>' +
