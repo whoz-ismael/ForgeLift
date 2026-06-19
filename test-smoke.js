@@ -1,14 +1,24 @@
 // Headless smoke test for the ForgeLift app using jsdom.
 const fs = require("fs");
-const { JSDOM } = require("jsdom");
+const { JSDOM, VirtualConsole } = require("jsdom");
 
 const html = fs.readFileSync("index.html", "utf8");
 const js = fs.readFileSync("js/app.js", "utf8");
 
-const dom = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true, url: "https://localhost/" });
+// Silence jsdom's harmless "Not implemented: navigation" from the export <a> click
+const vc = new VirtualConsole();
+vc.on("jsdomError", () => {});
+
+const dom = new JSDOM(html, { runScripts: "outside-only", pretendToBeVisual: true, url: "https://localhost/", virtualConsole: vc });
 const { window } = dom;
 const { document } = window;
 const store = window.localStorage; // jsdom-backed; usable because url is set
+
+// Stubs for browser APIs jsdom doesn't fully implement
+window.confirm = () => true;
+window.alert = () => {};
+window.URL.createObjectURL = () => "blob:mock";
+window.URL.revokeObjectURL = () => {};
 
 // Run the app script in the window context
 window.eval(js);
@@ -98,5 +108,50 @@ click('[data-action="do-login"]');
 check("custom machine persisted across logout", /Smith Machine/.test($("#app").textContent));
 check("theme persisted (light)", $("#app").getAttribute("data-theme") === "light");
 
-console.log("\n" + pass + " passed, " + fail + " failed");
-process.exit(fail ? 1 : 0);
+(async function () {
+  function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+  console.log("\nBACKUP / RESTORE / DELETE");
+  // demo is logged in with a custom "Smith Machine" — capture a backup payload
+  const backup = { app: "ForgeLift", version: 1, data: JSON.parse(store.getItem("replog:demo")) };
+
+  click('[data-action="open-settings"]');
+  click('[data-action="export-backup"]');
+  check("export reports success", /BACKUP DOWNLOADED/.test($("#app").textContent));
+
+  // switch to a fresh second account
+  click('[data-action="logout"]');
+  setInput("#input-username", "bob");
+  "9999".split("").forEach((d) => click('[data-action="pin"][data-d="' + d + '"]'));
+  click('[data-action="do-login"]');
+  check("second account starts without demo's custom machine", !/Smith Machine/.test($("#app").textContent));
+
+  // restore demo's backup into bob
+  click('[data-action="open-settings"]');
+  const input = $("#input-restore");
+  const file = new window.File([JSON.stringify(backup)], "backup.json", { type: "application/json" });
+  Object.defineProperty(input, "files", { value: [file], configurable: true });
+  input.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await wait(50);
+  check("restore reports success", /BACKUP RESTORED/.test($("#app").textContent));
+  check("restore persisted under bob", /Smith Machine/.test(store.getItem("replog:bob") || ""));
+  click('[data-action="go-home"]');
+  check("restored machine visible on home", /Smith Machine/.test($("#app").textContent));
+
+  // reject a non-backup file
+  click('[data-action="open-settings"]');
+  const input2 = $("#input-restore"); // fresh node after re-render
+  const bad = new window.File(["not json at all"], "x.json", { type: "application/json" });
+  Object.defineProperty(input2, "files", { value: [bad], configurable: true });
+  input2.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await wait(50);
+  check("invalid file rejected", /INVALID FILE/.test($("#app").textContent));
+
+  // delete account
+  click('[data-action="delete-account"]');
+  check("delete returns to login", /FORGE/.test($("#app").textContent));
+  check("deleted account removed from storage", store.getItem("replog:bob") === null);
+
+  console.log("\n" + pass + " passed, " + fail + " failed");
+  process.exit(fail ? 1 : 0);
+})();

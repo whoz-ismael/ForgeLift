@@ -12,6 +12,7 @@
     usernameDraft: "", pinDraft: "", loginError: "",
     machines: [], logs: {}, activeId: null, draft: [], search: "",
     addName: "", addGroup: "Chest", addPhoto: null,
+    settingsMsg: "", settingsMsgOk: false,
   };
 
   var app = document.getElementById("app");
@@ -78,13 +79,13 @@
     });
   }
   function logout() {
-    setState({ screen: "login", user: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: "", usernameDraft: "", search: "" });
+    setState({ screen: "login", user: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: "", usernameDraft: "", search: "", settingsMsg: "", settingsMsgOk: false });
   }
 
   // ── nav ──
-  function openSettings() { setState({ screen: "settings" }); }
+  function openSettings() { setState({ screen: "settings", settingsMsg: "", settingsMsgOk: false }); }
   function openAdd() { setState({ screen: "add", addName: "", addPhoto: null, addGroup: "Chest" }); }
-  function goHome() { setState({ screen: "home", search: "" }); }
+  function goHome() { setState({ screen: "home", search: "", settingsMsg: "", settingsMsgOk: false }); }
   function openMachine(id) { setState({ activeId: id, draft: [], screen: "machine" }); }
 
   // ── favorites ──
@@ -146,6 +147,92 @@
   // ── settings ──
   function setTheme(t) { setState({ theme: t }, true); }
   function setUnit(u) { setState({ unit: u }, true); }
+
+  // ── backup / restore / delete ──
+  function sanitizeMachines(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(function (m) { return m && m.name != null; }).map(function (m, i) {
+      return {
+        id: String(m.id || ("r" + Date.now() + "_" + i)),
+        name: String(m.name),
+        group: GROUPS.indexOf(m.group) >= 0 ? m.group : (m.group ? String(m.group) : "Chest"),
+        fav: !!m.fav,
+        photo: typeof m.photo === "string" ? m.photo : null,
+      };
+    });
+  }
+  function sanitizeLogs(obj) {
+    var out = {};
+    if (!obj || typeof obj !== "object") return out;
+    Object.keys(obj).forEach(function (k) {
+      var arr = obj[k];
+      if (!Array.isArray(arr)) return;
+      var sessions = arr.map(function (s) {
+        var sets = Array.isArray(s && s.sets)
+          ? s.sets.map(function (x) { return { reps: Number(x && x.reps) || 0, weight: Number(x && x.weight) || 0 }; })
+                  .filter(function (x) { return x.reps || x.weight; })
+          : [];
+        return { date: String((s && s.date) || ""), sets: sets };
+      }).filter(function (s) { return s.sets.length; });
+      if (sessions.length) out[k] = sessions;
+    });
+    return out;
+  }
+
+  function exportBackup() {
+    try {
+      var payload = {
+        app: "ForgeLift", version: 1, user: state.user, exportedAt: new Date().toISOString(),
+        data: { machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme },
+      };
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      var slug = (state.user || "backup").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
+      a.href = url;
+      a.download = "forgelift-" + slug + "-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) {} }, 1000);
+      setState({ settingsMsg: "BACKUP DOWNLOADED", settingsMsgOk: true });
+    } catch (e) {
+      setState({ settingsMsg: "EXPORT FAILED", settingsMsgOk: false });
+    }
+  }
+
+  function importBackup(file) {
+    if (!file) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var parsed;
+      try { parsed = JSON.parse(r.result); } catch (e) {
+        setState({ settingsMsg: "INVALID FILE — NOT JSON", settingsMsgOk: false }); return;
+      }
+      var d = parsed && parsed.data ? parsed.data : parsed; // accept full backup or raw data
+      if (!d || !Array.isArray(d.machines)) {
+        setState({ settingsMsg: "NOT A FORGELIFT BACKUP", settingsMsgOk: false }); return;
+      }
+      if (!window.confirm("Restore this backup? It replaces the current machines and history for \"" + (state.user || "this account") + "\".")) {
+        setState({ settingsMsg: "RESTORE CANCELLED", settingsMsgOk: false }); return;
+      }
+      var machines = sanitizeMachines(d.machines);
+      var logs = sanitizeLogs(d.logs);
+      var unit = d.unit === "lb" ? "lb" : "kg";
+      var theme = d.theme === "light" ? "light" : "dark";
+      setState({ machines: machines, logs: logs, unit: unit, theme: theme, settingsMsg: "BACKUP RESTORED · " + machines.length + " MACHINES", settingsMsgOk: true }, true);
+    };
+    r.onerror = function () { setState({ settingsMsg: "COULD NOT READ FILE", settingsMsgOk: false }); };
+    r.readAsText(file);
+  }
+
+  function deleteAccount() {
+    var u = state.user;
+    if (!u) return;
+    if (!window.confirm("Delete account \"" + u + "\"? This erases all its machines and history on this device and cannot be undone.")) return;
+    try { localStorage.removeItem("replog:" + u.toLowerCase()); } catch (e) {}
+    logout();
+  }
 
   // ── formatting ──
   function dispW(kg) { return state.unit === "lb" ? Math.round(kg / LB) : Math.round(kg * 10) / 10; }
@@ -548,6 +635,10 @@
     };
     var initial = (state.user || "?").charAt(0).toUpperCase();
 
+    var msg = state.settingsMsg
+      ? '<div style="margin-top:12px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:' + (state.settingsMsgOk ? "var(--muted)" : "var(--accent)") + ';">' + esc(state.settingsMsg) + '</div>'
+      : "";
+
     return '<div class="screen" style="display:flex;flex-direction:column;">' +
       '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">' +
         '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
@@ -559,12 +650,21 @@
         '<div style="display:flex;gap:10px;margin-bottom:30px;">' + seg("Light", "theme-light", !isDark) + seg("Dark", "theme-dark", isDark) + '</div>' +
         '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Weight Unit</div>' +
         '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg("Kilograms", "unit-kg", ul === "kg") + unitSeg("Pounds", "unit-lb", ul === "lb") + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Data &amp; Backup</div>' +
+        '<div style="display:flex;gap:10px;">' +
+          '<button data-action="export-backup" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">⤓ Export</button>' +
+          '<label class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;text-align:center;display:block;">⤒ Restore<input id="input-restore" type="file" accept="application/json,.json" style="display:none;" /></label>' +
+        '</div>' +
+        '<div style="margin-top:9px;font-size:10px;letter-spacing:0.1em;color:var(--muted);line-height:1.5;">Export downloads a .json file. Restore loads one back — keep it safe to move your data between devices.</div>' +
+        msg +
+        '<div style="height:30px;"></div>' +
         '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Account</div>' +
         '<div style="display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:15px;margin-bottom:14px;">' +
           '<div style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:\'Doto\',monospace;font-weight:900;font-size:20px;color:#fff;">' + esc(initial) + '</div>' +
           '<div><div style="font-size:15px;color:var(--text);">' + esc(state.user) + '</div><div style="font-size:10px;letter-spacing:0.14em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Signed in</div></div>' +
         '</div>' +
         '<button data-action="logout" class="hov-border-accent" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--accent);font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Log Out</button>' +
+        '<button data-action="delete-account" class="hov-bright" style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Delete Account</button>' +
         '<div style="text-align:center;margin-top:34px;font-family:\'Doto\',monospace;font-weight:700;font-size:13px;letter-spacing:0.3em;color:var(--muted);">FORGELIFT · v1.0</div>' +
       '</div></div>';
   }
@@ -594,6 +694,8 @@
     "theme-dark": function () { setTheme("dark"); },
     "unit-kg": function () { setUnit("kg"); },
     "unit-lb": function () { setUnit("lb"); },
+    "export-backup": exportBackup,
+    "delete-account": deleteAccount,
     "logout": logout,
   };
 
@@ -614,6 +716,9 @@
   app.addEventListener("change", function (e) {
     if (e.target.id === "input-photo") {
       handlePhoto(e.target.files && e.target.files[0]);
+    } else if (e.target.id === "input-restore") {
+      importBackup(e.target.files && e.target.files[0]);
+      e.target.value = ""; // allow re-selecting the same file
     }
   });
 

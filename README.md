@@ -35,7 +35,18 @@ Log in with **any username + any 4-digit PIN**. A new name seeds a demo account 
 - **Progress chart** — max weight per session over time (inline SVG).
 - **Add machine** with a photo from your gallery.
 - **Settings** — light/dark theme, kg/lb units, logout.
+- **Backup & restore** — export your account to a `.json` file and load it back later (move data between devices / keep a safety copy).
+- **Delete account** — wipe a user's saved data from the device (with confirmation).
 - **Responsive** — full-screen on phones, a centered phone frame on desktop.
+
+## Backups
+
+In **Settings → Data & Backup**:
+
+- **Export** downloads `forgelift-<user>-<date>.json` containing your machines, history, unit and theme.
+- **Restore** reads such a file back and replaces the current account's data (asks for confirmation first; invalid files are rejected).
+
+Backups are plain JSON, so they're easy to inspect, archive, or sync yourself.
 
 ## Test
 
