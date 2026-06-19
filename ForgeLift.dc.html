@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@300;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  input { font-family: 'Space Mono', monospace; }
+  ::placeholder { color: var(--muted); opacity: 1; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  @keyframes rl-pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes rl-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+</style>
+</helmet>
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#000"/><circle cx="50" cy="38" r="11" fill="#D71921"/><rect x="34" y="58" width="32" height="5" rx="2.5" fill="#fff"/><rect x="40" y="68" width="20" height="5" rx="2.5" fill="#fff"/></svg></template>
+<div style="min-height:100vh;width:100%;display:flex;align-items:center;justify-content:center;background:#cfcdc8;background-image:radial-gradient(#bdbbb5 1px,transparent 1px);background-size:20px 20px;padding:40px 20px;">
+  <x-import component="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402px,874px">
+    <div style="{{ shell }}">
+
+      <!-- LOGIN -->
+      <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ true }}">
+      <div style="height:100%;display:flex;flex-direction:column;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:22px 22px;">
+        <div style="flex:1;overflow:auto;display:flex;flex-direction:column;justify-content:center;padding:54px 30px 40px;">
+          <img src="{{ brandMark }}" style="width:58px;height:58px;display:block;margin-bottom:24px;" />
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 2.4s infinite;"></span>
+            <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Gym Tracker</span>
+          </div>
+          <div style="font-family:'Doto',monospace;font-weight:900;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:34px;">FORGE<br>LIFT</div>
+
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Username</div>
+          <input value="{{ usernameDraft }}" onInput="{{ onUserInput }}" placeholder="enter name" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;letter-spacing:0.02em;margin-bottom:22px;" />
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);">PIN</span>
+            <div style="display:flex;gap:10px;">
+              <sc-for list="{{ pinDots }}" as="p" hint-placeholder-count="4">
+                <sc-if value="{{ p.filled }}"><span style="width:12px;height:12px;border-radius:50%;background:var(--accent);"></span></sc-if>
+                <sc-if value="{{ p.empty }}"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--border);"></span></sc-if>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;">
+            <sc-for list="{{ pinKeys }}" as="k" hint-placeholder-count="9">
+              <button onClick="{{ k.onPress }}" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Doto',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">{{ k.d }}</button>
+            </sc-for>
+            <div></div>
+            <button onClick="{{ onPin0 }}" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Doto',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">0</button>
+            <button onClick="{{ onPinDel }}" style="height:58px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:13px;letter-spacing:0.1em;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--text);color:var(--text);">DEL</button>
+          </div>
+
+          <div style="height:18px;margin-top:14px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.08em;color:var(--accent);text-align:center;">{{ loginError }}</div>
+          <button onClick="{{ doLogin }}" style="width:100%;margin-top:6px;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.22em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">Enter →</button>
+          <div style="text-align:center;margin-top:14px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--muted);">New name + any 4-digit PIN creates an account</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ══════════════ HOME ══════════════ -->
+      <sc-if value="{{ showHome }}">
+      <div style="height:100%;display:flex;flex-direction:column;">
+        <div style="padding:54px 22px 12px;flex-shrink:0;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">{{ greeting }}</div>
+              <div style="font-family:'Doto',monospace;font-weight:900;font-size:38px;line-height:0.95;color:var(--text);">MACHINES</div>
+            </div>
+            <button onClick="{{ openSettings }}" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>
+            </button>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>
+            <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" />
+          </div>
+        </div>
+
+        <div style="flex:1;overflow:auto;padding:6px 22px 110px;">
+          <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">
+              <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">{{ g.group }}</span>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">{{ g.count }}</span>
+              <span style="flex:1;height:1px;background:var(--border);"></span>
+            </div>
+            <sc-for list="{{ g.items }}" as="m" hint-placeholder-count="3">
+              <div onClick="{{ m.onOpen }}" style="display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+                <sc-if value="{{ m.photo }}"><img src="{{ m.photo }}" style="width:42px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);" /></sc-if>
+                <sc-if value="{{ m.noPhoto }}"><div style="width:42px;height:42px;border-radius:4px;flex-shrink:0;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="{{ m.icon }}" style="width:100%;height:100%;object-fit:contain;display:block;" /></div></sc-if>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15px;color:var(--text);letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.name }}</div>
+                  <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Last · {{ m.detail }}</div>
+                </div>
+                <button onClick="{{ m.onFav }}" style="width:34px;height:34px;flex-shrink:0;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                  <sc-if value="{{ m.fav }}"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span></sc-if>
+                  <sc-if value="{{ m.notFav }}"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);"></span></sc-if>
+                </button>
+              </div>
+            </sc-for>
+          </sc-for>
+          <sc-if value="{{ noResults }}"><div style="text-align:center;padding:50px 0;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div></sc-if>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">
+          <button onClick="{{ openAdd }}" style="width:100%;background:var(--text);border:none;color:var(--bg);font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="background:var(--accent);color:#fff;">＋ Add Machine</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ══════════════ MACHINE DETAIL ══════════════ -->
+      <sc-if value="{{ showMachine }}">
+      <div style="height:100%;display:flex;flex-direction:column;">
+        <div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+          <button onClick="{{ goHome }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg>
+          </button>
+          <button onClick="{{ onToggleAmFav }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
+            <sc-if value="{{ amFav }}"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span></sc-if>
+            <sc-if value="{{ amNotFav }}"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--muted);"></span></sc-if>
+          </button>
+        </div>
+
+        <div style="flex:1;overflow:auto;padding:4px 22px 120px;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">{{ amGroup }}</div>
+          <div style="font-family:'Doto',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:20px;">{{ amName }}</div>
+
+          <!-- PR stat -->
+          <div style="display:flex;align-items:flex-end;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+            <div>
+              <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Personal Best</div>
+              <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:'Doto',monospace;font-weight:900;font-size:54px;line-height:0.8;color:var(--accent);">{{ pr }}</span><span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--muted);">{{ ul }}</span></div>
+            </div>
+          </div>
+
+          <!-- CHART -->
+          <div style="margin-top:22px;">
+            <div style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:12px;">Max Weight · Over Time</div>
+            <sc-if value="{{ chart.has }}">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 12px 8px;">
+              <div style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:2px;"><span>{{ chart.topLabel }}</span></div>
+              <svg viewBox="0 0 300 140" width="100%" style="display:block;overflow:visible;">
+                <path d="{{ chart.area }}" style="fill:var(--accent);fill-opacity:0.10;stroke:none;"></path>
+                <polyline points="{{ chart.line }}" style="fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;"></polyline>
+                <sc-for list="{{ chart.dots }}" as="d" hint-placeholder-count="6">
+                  <circle cx="{{ d.x }}" cy="{{ d.y }}" r="3.2" style="fill:var(--surface);stroke:var(--accent);stroke-width:2;"></circle>
+                </sc-for>
+              </svg>
+              <div style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;"><span>{{ chart.xFirst }}</span><span>{{ chart.xLast }}</span></div>
+            </div>
+            </sc-if>
+            <sc-if value="{{ chart.empty }}"><div style="background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:34px 14px;text-align:center;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:var(--muted);">NO DATA YET — LOG A SET BELOW</div></sc-if>
+          </div>
+
+          <!-- TODAY'S SETS -->
+          <div style="margin-top:26px;display:flex;align-items:center;gap:10px;">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">Today's Sets</span>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+          </div>
+
+          <sc-for list="{{ draftRows }}" as="s" hint-placeholder-count="2">
+            <div style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 13px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+                <span style="font-family:'Doto',monospace;font-weight:700;font-size:15px;letter-spacing:0.1em;color:var(--text);">SET {{ s.label }}</span>
+                <button onClick="{{ s.onRem }}" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;" style-hover="color:var(--accent);">REMOVE</button>
+              </div>
+              <div style="display:flex;gap:10px;">
+                <div style="flex:1;">
+                  <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Reps</div>
+                  <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+                    <button onClick="{{ s.onRepDn }}" style="width:38px;height:42px;background:var(--bg);border:none;border-right:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">−</button>
+                    <span style="flex:1;text-align:center;font-family:'Doto',monospace;font-weight:700;font-size:20px;color:var(--text);">{{ s.reps }}</span>
+                    <button onClick="{{ s.onRepUp }}" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">+</button>
+                  </div>
+                </div>
+                <div style="flex:1.4;">
+                  <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Weight · {{ ul }}</div>
+                  <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+                    <button onClick="{{ s.onWDn }}" style="width:38px;height:42px;background:var(--bg);border:none;border-right:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">−</button>
+                    <span style="flex:1;text-align:center;font-family:'Doto',monospace;font-weight:700;font-size:20px;color:var(--text);">{{ s.weight }}</span>
+                    <button onClick="{{ s.onWUp }}" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <button onClick="{{ onAddSet }}" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">＋ Add Set</button>
+            <button onClick="{{ onDup }}" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">⎘ Duplicate Last</button>
+          </div>
+
+          <!-- HISTORY -->
+          <sc-if value="{{ hasHistory }}">
+          <div style="margin-top:28px;display:flex;align-items:center;gap:10px;">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">History</span>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+          </div>
+          <sc-for list="{{ history }}" as="h" hint-placeholder-count="3">
+            <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+              <div>
+                <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.1em;color:var(--text);">{{ h.date }}</div>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.06em;color:var(--muted);margin-top:3px;">{{ h.summary }}</div>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-family:'Doto',monospace;font-weight:700;font-size:22px;color:var(--text);">{{ h.max }}</span><span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">{{ ul }}</span></div>
+            </div>
+          </sc-for>
+          </sc-if>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">
+          <sc-if value="{{ canSave }}"><button onClick="{{ onSave }}" style="width:100%;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">Save Session ✓</button></sc-if>
+          <sc-if value="{{ cantSave }}"><div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">Add a set to save</div></sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ══════════════ ADD MACHINE ══════════════ -->
+      <sc-if value="{{ showAdd }}">
+      <div style="height:100%;display:flex;flex-direction:column;">
+        <div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">
+          <button onClick="{{ goHome }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg>
+          </button>
+          <div style="font-family:'Doto',monospace;font-weight:900;font-size:30px;color:var(--text);">NEW MACHINE</div>
+        </div>
+        <div style="flex:1;overflow:auto;padding:8px 22px 120px;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Name</div>
+          <input value="{{ addName }}" onInput="{{ onAddName }}" placeholder="e.g. Smith Machine" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;margin-bottom:24px;" />
+
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Muscle Group</div>
+          <div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:26px;">
+            <sc-for list="{{ groupChips }}" as="c" hint-placeholder-count="6">
+              <button onClick="{{ c.onPick }}" style="display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;padding:10px 14px;border-radius:4px;cursor:pointer;">
+                <sc-if value="{{ c.active }}"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);"></span></sc-if>
+                <sc-if value="{{ c.inactive }}"><span style="width:8px;height:8px;border-radius:50%;border:1px solid var(--border);"></span></sc-if>
+                {{ c.name }}
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Photo</div>
+          <label style="display:block;cursor:pointer;">
+            <input type="file" accept="image/*" onChange="{{ handlePhoto }}" style="display:none;" />
+            <sc-if value="{{ addPhoto }}"><img src="{{ addPhoto }}" style="width:100%;height:200px;object-fit:cover;border:1px solid var(--border);border-radius:6px;" /></sc-if>
+            <sc-if value="{{ noAddPhoto }}">
+            <div style="width:100%;height:200px;border:1px dashed var(--border);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.6"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+              <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;">Tap to choose from gallery</span>
+            </div>
+            </sc-if>
+          </label>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">
+          <sc-if value="{{ canSaveMachine }}"><button onClick="{{ onSaveMachine }}" style="width:100%;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">Save Machine ✓</button></sc-if>
+          <sc-if value="{{ cantSaveMachine }}"><div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">Enter a name to save</div></sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ══════════════ SETTINGS ══════════════ -->
+      <sc-if value="{{ showSettings }}">
+      <div style="height:100%;display:flex;flex-direction:column;">
+        <div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">
+          <button onClick="{{ goHome }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg>
+          </button>
+          <div style="font-family:'Doto',monospace;font-weight:900;font-size:32px;color:var(--text);">SETTINGS</div>
+        </div>
+        <div style="flex:1;overflow:auto;padding:18px 22px 40px;">
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Appearance</div>
+          <div style="display:flex;gap:10px;margin-bottom:30px;">
+            <sc-if value="{{ themeIsLight }}"><button onClick="{{ setThemeLight }}" style="flex:1;background:var(--text);color:var(--bg);border:1px solid var(--text);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Light</button></sc-if>
+            <sc-if value="{{ themeNotLight }}"><button onClick="{{ setThemeLight }}" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Light</button></sc-if>
+            <sc-if value="{{ themeIsDark }}"><button onClick="{{ setThemeDark }}" style="flex:1;background:var(--text);color:var(--bg);border:1px solid var(--text);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Dark</button></sc-if>
+            <sc-if value="{{ themeNotDark }}"><button onClick="{{ setThemeDark }}" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Dark</button></sc-if>
+          </div>
+
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Weight Unit</div>
+          <div style="display:flex;gap:10px;margin-bottom:30px;">
+            <sc-if value="{{ unitIsKg }}"><button onClick="{{ setUnitKg }}" style="flex:1;background:var(--accent);color:#fff;border:1px solid var(--accent);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Kilograms</button></sc-if>
+            <sc-if value="{{ unitNotKg }}"><button onClick="{{ setUnitKg }}" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Kilograms</button></sc-if>
+            <sc-if value="{{ unitIsLb }}"><button onClick="{{ setUnitLb }}" style="flex:1;background:var(--accent);color:#fff;border:1px solid var(--accent);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Pounds</button></sc-if>
+            <sc-if value="{{ unitNotLb }}"><button onClick="{{ setUnitLb }}" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Pounds</button></sc-if>
+          </div>
+
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Account</div>
+          <div style="display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:15px;margin-bottom:14px;">
+            <div style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'Doto',monospace;font-weight:900;font-size:20px;color:#fff;">{{ userInitial }}</div>
+            <div><div style="font-size:15px;color:var(--text);">{{ user }}</div><div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.14em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Signed in</div></div>
+          </div>
+          <button onClick="{{ logout }}" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--accent);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);">Log Out</button>
+
+          <div style="text-align:center;margin-top:34px;font-family:'Doto',monospace;font-weight:700;font-size:13px;letter-spacing:0.3em;color:var(--muted);">FORGELIFT · v1.0</div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;480&quot;,&quot;height&quot;:&quot;940&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      screen: 'login', theme: 'dark', unit: 'kg', user: null,
+      usernameDraft: '', pinDraft: '', loginError: '',
+      machines: [], logs: {}, activeId: null, draft: [], search: '',
+      addName: '', addGroup: 'Chest', addPhoto: null,
+    };
+    this.LB = 0.45359237;
+    this.GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+  }
+
+  // ── seed data ──
+  seed() {
+    const base = [
+      ['Chest Press','Chest'],['Pec Deck','Chest'],['Incline Press','Chest'],['Cable Crossover','Chest'],
+      ['Lat Pulldown','Back'],['Seated Row','Back'],['Assisted Pull-Up','Back'],['Back Extension','Back'],
+      ['Leg Press','Legs'],['Leg Extension','Legs'],['Leg Curl','Legs'],['Hack Squat','Legs'],['Calf Raise','Legs'],
+      ['Shoulder Press','Shoulders'],['Lateral Raise','Shoulders'],['Rear Delt Fly','Shoulders'],
+      ['Bicep Curl','Arms'],['Tricep Pushdown','Arms'],['Preacher Curl','Arms'],
+      ['Ab Crunch','Core'],['Cable Crunch','Core'],
+    ];
+    const machines = base.map((b, i) => ({ id: 'm' + i, name: b[0], group: b[1], fav: false, photo: null }));
+    machines[0].fav = true; machines[4].fav = true; machines[8].fav = true;
+    const now = Date.now(), day = 86400000;
+    const dstr = (w) => new Date(now - w * 7 * day).toISOString().slice(0, 10);
+    const series = (n, start, step) => {
+      const out = [];
+      for (let k = 0; k < n; k++) {
+        const w = start + k * step;
+        out.push({ date: dstr(n - 1 - k), sets: [
+          { reps: 12, weight: Math.max(start, w - step) },
+          { reps: 10, weight: w },
+          { reps: 8, weight: w },
+        ]});
+      }
+      return out;
+    };
+    const logs = { m0: series(8, 40, 2.5), m4: series(7, 45, 2.5), m8: series(8, 80, 5), m13: series(6, 25, 2.5) };
+    return { machines, logs };
+  }
+
+  persist(patch) {
+    const u = (patch && patch.user) || this.state.user;
+    if (!u) return;
+    const s = Object.assign({}, this.state, patch || {});
+    try { localStorage.setItem('replog:' + u.toLowerCase(), JSON.stringify({ machines: s.machines, logs: s.logs, unit: s.unit, theme: s.theme })); } catch (e) {}
+  }
+  save(patch) { this.setState(patch, () => this.persist()); }
+
+  // ── login ──
+  onUserInput = (e) => this.setState({ usernameDraft: e.target.value, loginError: '' });
+  pinPress(d) { if (this.state.pinDraft.length >= 4) return; this.setState({ pinDraft: this.state.pinDraft + d, loginError: '' }); }
+  pinDel = () => this.setState({ pinDraft: this.state.pinDraft.slice(0, -1) });
+  doLogin = () => {
+    const u = this.state.usernameDraft.trim();
+    const p = this.state.pinDraft;
+    if (!u) { this.setState({ loginError: 'ENTER A USERNAME' }); return; }
+    if (p.length < 4) { this.setState({ loginError: 'PIN MUST BE 4 DIGITS' }); return; }
+    let data = null;
+    try { const raw = localStorage.getItem('replog:' + u.toLowerCase()); if (raw) data = JSON.parse(raw); } catch (e) {}
+    if (!data) data = this.seed();
+    this.setState({
+      user: u, machines: data.machines, logs: data.logs,
+      unit: data.unit || this.state.unit, theme: data.theme || this.state.theme,
+      screen: 'home', loginError: '', pinDraft: '', usernameDraft: '',
+    });
+  };
+  logout = () => this.setState({ screen: 'login', user: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: '', usernameDraft: '', search: '' });
+
+  // ── nav ──
+  openSettings = () => this.setState({ screen: 'settings' });
+  openAdd = () => this.setState({ screen: 'add', addName: '', addPhoto: null, addGroup: 'Chest' });
+  goHome = () => this.setState({ screen: 'home', search: '' });
+  openMachine(id) { this.setState({ activeId: id, draft: [], screen: 'machine' }); }
+  onSearch = (e) => this.setState({ search: e.target.value });
+
+  // ── favorites ──
+  toggleFav(id) { this.save({ machines: this.state.machines.map(m => m.id === id ? Object.assign({}, m, { fav: !m.fav }) : m) }); }
+
+  // ── set drafting ──
+  lastWeight(id) { const s = this.state.logs[id] || []; if (!s.length) return 20; const l = s[s.length - 1]; return Math.max.apply(null, l.sets.map(x => x.weight)); }
+  addSet = () => this.setState({ draft: this.state.draft.concat([{ reps: 10, weight: this.lastWeight(this.state.activeId) }]) });
+  duplicateLast = () => { const d = this.state.draft; if (!d.length) { this.addSet(); return; } const s = d[d.length - 1]; this.setState({ draft: d.concat([{ reps: s.reps, weight: s.weight }]) }); };
+  repsDelta(i, dl) { this.setState({ draft: this.state.draft.map((s, j) => j === i ? Object.assign({}, s, { reps: Math.max(1, s.reps + dl) }) : s) }); }
+  weightDelta(i, dl) { const step = this.state.unit === 'lb' ? 5 * this.LB : 2.5; this.setState({ draft: this.state.draft.map((s, j) => j === i ? Object.assign({}, s, { weight: Math.max(0, Math.round((s.weight + dl * step) * 1000) / 1000) }) : s) }); }
+  removeSet(i) { this.setState({ draft: this.state.draft.filter((_, j) => j !== i) }); }
+  saveSession = () => {
+    const id = this.state.activeId, d = this.state.draft;
+    if (!d.length) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const logs = Object.assign({}, this.state.logs);
+    logs[id] = (logs[id] || []).concat([{ date: today, sets: d.map(s => ({ reps: s.reps, weight: s.weight })) }]);
+    this.save({ logs, draft: [] });
+  };
+
+  // ── add machine ──
+  onAddName = (e) => this.setState({ addName: e.target.value });
+  handlePhoto = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => this.setState({ addPhoto: r.result }); r.readAsDataURL(f); };
+  saveMachine = () => {
+    const n = this.state.addName.trim(); if (!n) return;
+    const m = { id: 'c' + Date.now(), name: n, group: this.state.addGroup, fav: false, photo: this.state.addPhoto };
+    this.save({ machines: this.state.machines.concat([m]), addName: '', addPhoto: null, screen: 'home' });
+  };
+
+  // ── settings ──
+  setThemeLight = () => this.save({ theme: 'light' });
+  setThemeDark = () => this.save({ theme: 'dark' });
+  setUnitKg = () => this.save({ unit: 'kg' });
+  setUnitLb = () => this.save({ unit: 'lb' });
+
+  dispW(kg) { return this.state.unit === 'lb' ? Math.round(kg / this.LB) : Math.round(kg * 10) / 10; }
+  fmtDate(iso) { try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase(); } catch (e) { return iso; } }
+
+  iconKey(name, group) {
+    const n = (name || '').toLowerCase();
+    if (n.includes('pulldown')) return 'pulldown';
+    if (n.includes('pull-up') || n.includes('pull up') || n.includes('pullup') || n.includes('chin')) return 'pullup';
+    if (n.includes('row')) return 'row';
+    if (n.includes('crossover') || n.includes('pec deck') || n.includes('fly')) return 'fly';
+    if (n.includes('lateral') || n.includes('lat raise')) return 'lateral';
+    if (n.includes('leg') && n.includes('curl')) return 'legcurl';
+    if (n.includes('leg press')) return 'legpress';
+    if (n.includes('leg') && n.includes('ext')) return 'legext';
+    if (n.includes('back ext') || n.includes('hyperext')) return 'backext';
+    if (n.includes('squat')) return 'squat';
+    if (n.includes('calf')) return 'calf';
+    if (n.includes('pushdown') || n.includes('tricep')) return 'pushdown';
+    if (n.includes('curl')) return 'curl';
+    if (n.includes('crunch') || n.includes('ab ')) return 'crunch';
+    if (n.includes('press')) return 'press';
+    const g = { Chest: 'press', Back: 'pulldown', Legs: 'legpress', Shoulders: 'lateral', Arms: 'curl', Core: 'crunch' };
+    return g[group] || 'press';
+  }
+
+  brandMark(c, a) {
+    const cell = 56, R = 25, sx = 512 - 6 * cell, sy = 512 - 4 * cell;
+    const dots = []; const add = (col, row, red) => dots.push([col, row, red]);
+    for (let col = 3; col <= 9; col++) add(col, 4, col === 6);
+    [3, 9].forEach(col => { add(col, 3); add(col, 5); });
+    [2, 10].forEach(col => { [2, 3, 4, 5, 6].forEach(row => add(col, row)); });
+    [1, 11].forEach(col => { for (let row = 1; row <= 7; row++) add(col, row); });
+    const circ = dots.map(d => `<circle cx="${sx + d[0] * cell}" cy="${sy + d[1] * cell}" r="${R}" fill="${d[2] ? a : c}"/>`).join('');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">${circ}</svg>`;
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
+  machineIcon(name, group, c, a) {
+    const W = `fill="${a}" stroke="none"`;
+    const P = {
+      press: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v9"/><path d="M20 21l-4 8"/><path d="M20 21l4 8"/><path d="M20 14l-6-3"/><path d="M20 14l6-3"/><path d="M11 11h18"/><circle cx="11" cy="11" r="2.4" ${W}/><circle cx="29" cy="11" r="2.4" ${W}/>`,
+      curl: `<circle cx="18" cy="9" r="2.6"/><path d="M18 12v10"/><path d="M18 22l-4 7"/><path d="M18 22l4 7"/><path d="M18 14l4 5"/><path d="M22 19l-3-4"/><circle cx="19" cy="14.5" r="2.4" ${W}/>`,
+      lateral: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14h-9"/><path d="M20 14h9"/><circle cx="10" cy="14" r="2.4" ${W}/><circle cx="30" cy="14" r="2.4" ${W}/>`,
+      fly: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14c-6 0-9 2-9 6"/><path d="M20 14c6 0 9 2 9 6"/><circle cx="11" cy="20" r="2.4" ${W}/><circle cx="29" cy="20" r="2.4" ${W}/>`,
+      pulldown: `<path d="M12 7h16"/><circle cx="12" cy="7" r="2.2" ${W}/><circle cx="28" cy="7" r="2.2" ${W}/><circle cx="20" cy="15" r="2.6"/><path d="M20 18v6"/><path d="M20 18l-5-9"/><path d="M20 18l5-9"/><path d="M20 24l-4 6"/><path d="M20 24l5 3v3"/>`,
+      row: `<path d="M30 7v25"/><circle cx="15" cy="12" r="2.6"/><path d="M15 15v6"/><path d="M15 21h7l3 8"/><path d="M15 16h9"/><circle cx="24" cy="16" r="2.4" ${W}/><path d="M26 16h4"/>`,
+      pullup: `<path d="M9 8h22"/><path d="M16 8v3"/><path d="M24 8v3"/><circle cx="20" cy="14" r="2.6"/><path d="M16 11l4 3 4-3"/><path d="M20 17v8"/><path d="M20 25l-3 6"/><path d="M20 25l3 6"/>`,
+      backext: `<path d="M7 31l12-7"/><circle cx="16" cy="18" r="2.6"/><path d="M16 21l8 5"/><path d="M24 26l6-2"/><path d="M16 21l-3 8"/><circle cx="30" cy="24" r="2.4" ${W}/>`,
+      legpress: `<path d="M8 30v-7a2 2 0 0 1 2-2h3"/><path d="M8 30h8"/><circle cx="12" cy="17" r="2.5"/><path d="M14 21l10-6"/><path d="M24 15l5-3"/><path d="M26 8l6 4-4 6z" ${W}/>`,
+      legext: `<path d="M10 13v11"/><path d="M10 24h6"/><circle cx="13" cy="10" r="2.4"/><path d="M16 24h5"/><path d="M21 24l8-3"/><circle cx="29" cy="21" r="2.4" ${W}/>`,
+      legcurl: `<path d="M7 27h16"/><circle cx="11" cy="22.5" r="2.4"/><path d="M13 24h9"/><path d="M22 24l3-7"/><circle cx="25" cy="17" r="2.4" ${W}/>`,
+      squat: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v6"/><path d="M13 12h14"/><circle cx="13" cy="12" r="2.2" ${W}/><circle cx="27" cy="12" r="2.2" ${W}/><path d="M20 18l-5 5v6"/><path d="M20 18l5 5v6"/>`,
+      calf: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v13"/><path d="M14 12h12"/><circle cx="14" cy="12" r="2.2" ${W}/><circle cx="26" cy="12" r="2.2" ${W}/><path d="M20 25l-4 5"/><path d="M20 25l4 5"/><path d="M14 30h12"/>`,
+      pushdown: `<path d="M12 7h16"/><circle cx="20" cy="9.5" r="2.6"/><path d="M20 12.5v8"/><path d="M20 20.5l-4 7"/><path d="M20 20.5l4 7"/><path d="M20 15l-4 4v4"/><path d="M16 9.5v5.5"/><circle cx="16" cy="23" r="2.4" ${W}/>`,
+      crunch: `<path d="M7 29h18"/><path d="M20 28l3-5"/><path d="M20 28l-6-4"/><circle cx="12" cy="20" r="2.6"/><path d="M14 22l5 5"/><path d="M14 21l5-1"/>`,
+    }[this.iconKey(name, group)];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" stroke="${c}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${P}</svg>`;
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
+  renderVals() {
+    const S = this.state;
+    const isDark = S.theme === 'dark';
+    const ul = S.unit;
+    const dispW = (k) => this.dispW(k);
+    const iconStroke = isDark ? '#d6d6d6' : '#3a3a3a';
+    const iconAccent = '#D71921';
+
+    const themeVars = isDark
+      ? { '--bg': '#000000', '--surface': '#0f0f0f', '--border': '#262626', '--text': '#ffffff', '--muted': '#7d7d7d', '--accent': '#D71921', '--dot': '#161616' }
+      : { '--bg': '#f4f4f2', '--surface': '#ffffff', '--border': '#dddcd7', '--text': '#0a0a0a', '--muted': '#9a9a94', '--accent': '#D71921', '--dot': '#e4e3de' };
+    const shell = Object.assign({}, themeVars, {
+      height: '100%', background: 'var(--bg)', color: 'var(--text)',
+      fontFamily: "'Space Mono', monospace", overflow: 'hidden', position: 'relative',
+    });
+
+    // login
+    const pinDots = [0, 1, 2, 3].map(i => ({ filled: i < S.pinDraft.length, empty: i >= S.pinDraft.length }));
+    const pinKeys = ['1','2','3','4','5','6','7','8','9'].map(d => ({ d, onPress: () => this.pinPress(d) }));
+
+    // home machine rows
+    const q = S.search.trim().toLowerCase();
+    const filt = S.machines.filter(m => !q || m.name.toLowerCase().includes(q));
+    const mkRow = (m) => {
+      const sess = S.logs[m.id] || [];
+      const last = sess.length ? sess[sess.length - 1] : null;
+      const lastMax = last ? Math.max.apply(null, last.sets.map(s => s.weight)) : null;
+      return {
+        id: m.id, name: m.name, fav: m.fav, notFav: !m.fav,
+        photo: m.photo || null, noPhoto: !m.photo,
+        initials: m.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(),
+        icon: this.machineIcon(m.name, m.group, iconStroke, iconAccent),
+        detail: lastMax != null ? dispW(lastMax) + ' ' + ul : '—',
+        onOpen: () => this.openMachine(m.id),
+        onFav: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleFav(m.id); },
+      };
+    };
+    const groups = [];
+    const favs = filt.filter(m => m.fav).map(mkRow);
+    if (favs.length) groups.push({ group: 'Favorites', count: favs.length, items: favs });
+    this.GROUPS.forEach(g => { const items = filt.filter(m => m.group === g).map(mkRow); if (items.length) groups.push({ group: g, count: items.length, items }); });
+    filt.forEach(m => { if (this.GROUPS.indexOf(m.group) === -1) { let grp = groups.find(x => x.group === m.group); if (!grp) { grp = { group: m.group, count: 0, items: [] }; groups.push(grp); } grp.items.push(mkRow(m)); grp.count = grp.items.length; } });
+
+    // machine detail
+    const am = S.machines.find(m => m.id === S.activeId) || null;
+    let pr = '—', chart = { has: false, empty: true }, history = [], hasHistory = false;
+    let amName = '', amGroup = '', amFav = false;
+    if (am) {
+      amName = am.name; amGroup = am.group; amFav = am.fav;
+      const sess = (S.logs[am.id] || []).slice().sort((a, b) => a.date < b.date ? -1 : 1);
+      const sr = sess.map(s => ({ date: s.date, max: Math.max.apply(null, s.sets.map(x => x.weight)) }));
+      if (sr.length) {
+        pr = String(dispW(Math.max.apply(null, sr.map(s => s.max))));
+        const W = 300, H = 140, pL = 6, pR = 6, pT = 14, pB = 18;
+        const vals = sr.map(s => s.max), mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals), span = (mx - mn) || 1, n = sr.length;
+        const coords = sr.map((s, i) => {
+          const x = n === 1 ? W / 2 : pL + (i / (n - 1)) * (W - pL - pR);
+          const y = pT + (1 - (s.max - mn) / span) * (H - pT - pB);
+          return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+        });
+        const line = coords.map(c => c.x + ',' + c.y).join(' ');
+        const area = 'M' + coords[0].x + ',' + (H - pB) + coords.map(c => ' L' + c.x + ',' + c.y).join('') + ' L' + coords[coords.length - 1].x + ',' + (H - pB) + ' Z';
+        chart = { has: true, empty: false, line, area, dots: coords, topLabel: dispW(mx) + ' ' + ul, xFirst: this.fmtDate(sr[0].date), xLast: this.fmtDate(sr[sr.length - 1].date) };
+      }
+      const hist = (S.logs[am.id] || []).slice().sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 8);
+      history = hist.map(s => ({ date: this.fmtDate(s.date), max: String(dispW(Math.max.apply(null, s.sets.map(x => x.weight)))), summary: s.sets.length + ' SETS · ' + s.sets.map(x => x.reps).join('/') + ' REPS' }));
+      hasHistory = history.length > 0;
+    }
+    const draftRows = S.draft.map((st, i) => ({
+      label: String(i + 1).padStart(2, '0'), reps: st.reps, weight: dispW(st.weight),
+      onRepUp: () => this.repsDelta(i, 1), onRepDn: () => this.repsDelta(i, -1),
+      onWUp: () => this.weightDelta(i, 1), onWDn: () => this.weightDelta(i, -1), onRem: () => this.removeSet(i),
+    }));
+
+    const groupChips = this.GROUPS.map(g => ({ name: g, active: g === S.addGroup, inactive: g !== S.addGroup, onPick: () => this.setState({ addGroup: g }) }));
+
+    return {
+      shell, isDark,
+      brandMark: this.brandMark(isDark ? '#f3f3f1' : '#111111', iconAccent),
+      showLogin: S.screen === 'login', showHome: S.screen === 'home', showMachine: S.screen === 'machine',
+      showAdd: S.screen === 'add', showSettings: S.screen === 'settings',
+      // login
+      usernameDraft: S.usernameDraft, pinDots, pinKeys, onUserInput: this.onUserInput,
+      onPin0: () => this.pinPress('0'), onPinDel: this.pinDel, doLogin: this.doLogin, loginError: S.loginError,
+      // home
+      greeting: 'Hello, ' + (S.user || '').toUpperCase(), groups, search: S.search, onSearch: this.onSearch,
+      openSettings: this.openSettings, openAdd: this.openAdd, noResults: groups.length === 0,
+      // machine
+      goHome: this.goHome, amName, amGroup, amFav, amNotFav: !amFav, onToggleAmFav: () => am && this.toggleFav(am.id),
+      pr, ul, chart, history, hasHistory, draftRows,
+      onAddSet: this.addSet, onDup: this.duplicateLast, onSave: this.saveSession,
+      canSave: S.draft.length > 0, cantSave: S.draft.length === 0,
+      // add
+      addName: S.addName, onAddName: this.onAddName, groupChips,
+      addPhoto: S.addPhoto, noAddPhoto: !S.addPhoto, handlePhoto: this.handlePhoto,
+      onSaveMachine: this.saveMachine, canSaveMachine: S.addName.trim().length > 0, cantSaveMachine: S.addName.trim().length === 0,
+      // settings
+      themeIsLight: !isDark, themeNotLight: isDark, themeIsDark: isDark, themeNotDark: !isDark,
+      unitIsKg: ul === 'kg', unitNotKg: ul !== 'kg', unitIsLb: ul === 'lb', unitNotLb: ul !== 'lb',
+      setThemeLight: this.setThemeLight, setThemeDark: this.setThemeDark, setUnitKg: this.setUnitKg, setUnitLb: this.setUnitLb,
+      user: S.user, userInitial: (S.user || '?').charAt(0).toUpperCase(), logout: this.logout,
+    };
+  }
+}
+</script>
+</body>
+</html>
