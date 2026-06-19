@@ -36,23 +36,9 @@
     var machines = base.map(function (b, i) {
       return { id: "m" + i, name: b[0], group: b[1], fav: false, photo: null };
     });
-    machines[0].fav = true; machines[4].fav = true; machines[8].fav = true;
-    var now = Date.now(), day = 86400000;
-    var dstr = function (w) { return new Date(now - w * 7 * day).toISOString().slice(0, 10); };
-    var series = function (n, start, step) {
-      var out = [];
-      for (var k = 0; k < n; k++) {
-        var w = start + k * step;
-        out.push({ date: dstr(n - 1 - k), sets: [
-          { reps: 12, weight: Math.max(start, w - step) },
-          { reps: 10, weight: w },
-          { reps: 8, weight: w },
-        ] });
-      }
-      return out;
-    };
-    var logs = { m0: series(8, 40, 2.5), m4: series(7, 45, 2.5), m8: series(8, 80, 5), m13: series(6, 25, 2.5) };
-    return { machines: machines, logs: logs };
+    // Fresh accounts get the machine catalog only — no example history or
+    // preset favorites. The user builds their own progress from here.
+    return { machines: machines, logs: {} };
   }
 
   // ── persistence ──

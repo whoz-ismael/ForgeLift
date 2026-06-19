@@ -40,8 +40,15 @@ click('[data-action="do-login"]');
 
 console.log("HOME");
 check("home shows MACHINES", /MACHINES/.test($("#app").textContent));
-check("seeded machines present (Chest Press)", /Chest Press/.test($("#app").textContent));
-check("favorites group shown", /Favorites/.test($("#app").textContent));
+check("machine catalog present (Chest Press)", /Chest Press/.test($("#app").textContent));
+check("no example history (no 'Last · kg' filled)", !/Last · \d/.test($("#app").textContent));
+check("no preset favorites group", !/Favorites/.test($("#app").textContent));
+
+console.log("FAVORITES");
+click('[data-action="toggle-fav"][data-id="m0"]');
+check("favorites group appears after marking one", /Favorites/.test($("#app").textContent));
+click('[data-action="toggle-fav"][data-id="m0"]');
+check("favorites group gone after unmarking", !/Favorites/.test($("#app").textContent));
 
 console.log("SEARCH");
 setInput("#input-search", "leg");
@@ -51,7 +58,7 @@ setInput("#input-search", "");
 console.log("MACHINE DETAIL + LOG A SET");
 click('[data-action="open-machine"][data-id="m0"]'); // Chest Press
 check("machine detail shows Personal Best", /Personal Best/.test($("#app").textContent));
-check("chart rendered (polyline)", !!$("polyline"));
+check("fresh machine has no chart yet", !$("polyline") && /NO DATA YET/.test($("#app").textContent));
 click('[data-action="add-set"]');
 check("a draft set appears", /SET 01/.test($("#app").textContent));
 const repsBefore = $('[data-action="rep-up"]').parentElement.querySelector("span").textContent;
@@ -62,6 +69,7 @@ click('[data-action="w-up"]');
 check("save bar enabled", /Save Session/.test($("#app").textContent));
 click('[data-action="save-session"]');
 check("session saved (draft cleared)", !/SET 01/.test($("#app").textContent));
+check("chart now rendered after first session", !!$("polyline"));
 check("persisted to localStorage", !!store.getItem("replog:demo"));
 
 console.log("ADD MACHINE");
