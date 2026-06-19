@@ -1,0 +1,13 @@
+{
+  "name": "forgelift",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nothing-style gym workout tracker — vanilla HTML/CSS/JS, localStorage.",
+  "scripts": {
+    "start": "npx --yes serve .",
+    "test": "node test-smoke.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

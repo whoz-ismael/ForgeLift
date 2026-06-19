@@ -1,0 +1,640 @@
+/* ForgeLift — vanilla JS gym tracker.
+ * Ported faithfully from the Claude Design prototype (ForgeLift.dc.html).
+ * State lives in memory; per-user data is persisted to localStorage. */
+(function () {
+  "use strict";
+
+  var LB = 0.45359237;
+  var GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core"];
+
+  var state = {
+    screen: "login", theme: "dark", unit: "kg", user: null,
+    usernameDraft: "", pinDraft: "", loginError: "",
+    machines: [], logs: {}, activeId: null, draft: [], search: "",
+    addName: "", addGroup: "Chest", addPhoto: null,
+  };
+
+  var app = document.getElementById("app");
+
+  // ── helpers ──
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  // ── seed data (demo account) ──
+  function seed() {
+    var base = [
+      ["Chest Press", "Chest"], ["Pec Deck", "Chest"], ["Incline Press", "Chest"], ["Cable Crossover", "Chest"],
+      ["Lat Pulldown", "Back"], ["Seated Row", "Back"], ["Assisted Pull-Up", "Back"], ["Back Extension", "Back"],
+      ["Leg Press", "Legs"], ["Leg Extension", "Legs"], ["Leg Curl", "Legs"], ["Hack Squat", "Legs"], ["Calf Raise", "Legs"],
+      ["Shoulder Press", "Shoulders"], ["Lateral Raise", "Shoulders"], ["Rear Delt Fly", "Shoulders"],
+      ["Bicep Curl", "Arms"], ["Tricep Pushdown", "Arms"], ["Preacher Curl", "Arms"],
+      ["Ab Crunch", "Core"], ["Cable Crunch", "Core"],
+    ];
+    var machines = base.map(function (b, i) {
+      return { id: "m" + i, name: b[0], group: b[1], fav: false, photo: null };
+    });
+    machines[0].fav = true; machines[4].fav = true; machines[8].fav = true;
+    var now = Date.now(), day = 86400000;
+    var dstr = function (w) { return new Date(now - w * 7 * day).toISOString().slice(0, 10); };
+    var series = function (n, start, step) {
+      var out = [];
+      for (var k = 0; k < n; k++) {
+        var w = start + k * step;
+        out.push({ date: dstr(n - 1 - k), sets: [
+          { reps: 12, weight: Math.max(start, w - step) },
+          { reps: 10, weight: w },
+          { reps: 8, weight: w },
+        ] });
+      }
+      return out;
+    };
+    var logs = { m0: series(8, 40, 2.5), m4: series(7, 45, 2.5), m8: series(8, 80, 5), m13: series(6, 25, 2.5) };
+    return { machines: machines, logs: logs };
+  }
+
+  // ── persistence ──
+  function persist() {
+    var u = state.user;
+    if (!u) return;
+    try {
+      localStorage.setItem("replog:" + u.toLowerCase(), JSON.stringify({
+        machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme,
+      }));
+    } catch (e) {}
+  }
+  function setState(patch, persistAfter) {
+    Object.assign(state, patch);
+    if (persistAfter) persist();
+    render();
+  }
+
+  // ── login ──
+  function pinPress(d) {
+    if (state.pinDraft.length >= 4) return;
+    setState({ pinDraft: state.pinDraft + d, loginError: "" });
+  }
+  function pinDel() { setState({ pinDraft: state.pinDraft.slice(0, -1) }); }
+  function doLogin() {
+    var u = state.usernameDraft.trim();
+    var p = state.pinDraft;
+    if (!u) { setState({ loginError: "ENTER A USERNAME" }); return; }
+    if (p.length < 4) { setState({ loginError: "PIN MUST BE 4 DIGITS" }); return; }
+    var data = null;
+    try { var raw = localStorage.getItem("replog:" + u.toLowerCase()); if (raw) data = JSON.parse(raw); } catch (e) {}
+    if (!data) data = seed();
+    setState({
+      user: u, machines: data.machines, logs: data.logs,
+      unit: data.unit || state.unit, theme: data.theme || state.theme,
+      screen: "home", loginError: "", pinDraft: "", usernameDraft: "",
+    });
+  }
+  function logout() {
+    setState({ screen: "login", user: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: "", usernameDraft: "", search: "" });
+  }
+
+  // ── nav ──
+  function openSettings() { setState({ screen: "settings" }); }
+  function openAdd() { setState({ screen: "add", addName: "", addPhoto: null, addGroup: "Chest" }); }
+  function goHome() { setState({ screen: "home", search: "" }); }
+  function openMachine(id) { setState({ activeId: id, draft: [], screen: "machine" }); }
+
+  // ── favorites ──
+  function toggleFav(id) {
+    setState({ machines: state.machines.map(function (m) {
+      return m.id === id ? Object.assign({}, m, { fav: !m.fav }) : m;
+    }) }, true);
+  }
+
+  // ── set drafting ──
+  function lastWeight(id) {
+    var s = state.logs[id] || [];
+    if (!s.length) return 20;
+    var l = s[s.length - 1];
+    return Math.max.apply(null, l.sets.map(function (x) { return x.weight; }));
+  }
+  function addSet() { setState({ draft: state.draft.concat([{ reps: 10, weight: lastWeight(state.activeId) }]) }); }
+  function duplicateLast() {
+    var d = state.draft;
+    if (!d.length) { addSet(); return; }
+    var s = d[d.length - 1];
+    setState({ draft: d.concat([{ reps: s.reps, weight: s.weight }]) });
+  }
+  function repsDelta(i, dl) {
+    setState({ draft: state.draft.map(function (s, j) {
+      return j === i ? Object.assign({}, s, { reps: Math.max(1, s.reps + dl) }) : s;
+    }) });
+  }
+  function weightDelta(i, dl) {
+    var step = state.unit === "lb" ? 5 * LB : 2.5;
+    setState({ draft: state.draft.map(function (s, j) {
+      return j === i ? Object.assign({}, s, { weight: Math.max(0, Math.round((s.weight + dl * step) * 1000) / 1000) }) : s;
+    }) });
+  }
+  function removeSet(i) { setState({ draft: state.draft.filter(function (_, j) { return j !== i; }) }); }
+  function saveSession() {
+    var id = state.activeId, d = state.draft;
+    if (!d.length) return;
+    var today = new Date().toISOString().slice(0, 10);
+    var logs = Object.assign({}, state.logs);
+    logs[id] = (logs[id] || []).concat([{ date: today, sets: d.map(function (s) { return { reps: s.reps, weight: s.weight }; }) }]);
+    setState({ logs: logs, draft: [] }, true);
+  }
+
+  // ── add machine ──
+  function handlePhoto(file) {
+    if (!file) return;
+    var r = new FileReader();
+    r.onload = function () { setState({ addPhoto: r.result }); };
+    r.readAsDataURL(file);
+  }
+  function saveMachine() {
+    var n = state.addName.trim();
+    if (!n) return;
+    var m = { id: "c" + Date.now(), name: n, group: state.addGroup, fav: false, photo: state.addPhoto };
+    setState({ machines: state.machines.concat([m]), addName: "", addPhoto: null, screen: "home" }, true);
+  }
+
+  // ── settings ──
+  function setTheme(t) { setState({ theme: t }, true); }
+  function setUnit(u) { setState({ unit: u }, true); }
+
+  // ── formatting ──
+  function dispW(kg) { return state.unit === "lb" ? Math.round(kg / LB) : Math.round(kg * 10) / 10; }
+  function fmtDate(iso) {
+    try {
+      return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
+    } catch (e) { return iso; }
+  }
+
+  // ── icon resolution ──
+  function iconKey(name, group) {
+    var n = (name || "").toLowerCase();
+    if (n.includes("pulldown")) return "pulldown";
+    if (n.includes("pull-up") || n.includes("pull up") || n.includes("pullup") || n.includes("chin")) return "pullup";
+    if (n.includes("row")) return "row";
+    if (n.includes("crossover") || n.includes("pec deck") || n.includes("fly")) return "fly";
+    if (n.includes("lateral") || n.includes("lat raise")) return "lateral";
+    if (n.includes("leg") && n.includes("curl")) return "legcurl";
+    if (n.includes("leg press")) return "legpress";
+    if (n.includes("leg") && n.includes("ext")) return "legext";
+    if (n.includes("back ext") || n.includes("hyperext")) return "backext";
+    if (n.includes("squat")) return "squat";
+    if (n.includes("calf")) return "calf";
+    if (n.includes("pushdown") || n.includes("tricep")) return "pushdown";
+    if (n.includes("curl")) return "curl";
+    if (n.includes("crunch") || n.includes("ab ")) return "crunch";
+    if (n.includes("press")) return "press";
+    var g = { Chest: "press", Back: "pulldown", Legs: "legpress", Shoulders: "lateral", Arms: "curl", Core: "crunch" };
+    return g[group] || "press";
+  }
+
+  function brandMark(c, a) {
+    var cell = 56, R = 25, sx = 512 - 6 * cell, sy = 512 - 4 * cell;
+    var dots = [];
+    var add = function (col, row, red) { dots.push([col, row, red]); };
+    for (var col = 3; col <= 9; col++) add(col, 4, col === 6);
+    [3, 9].forEach(function (c2) { add(c2, 3); add(c2, 5); });
+    [2, 10].forEach(function (c2) { [2, 3, 4, 5, 6].forEach(function (row) { add(c2, row); }); });
+    [1, 11].forEach(function (c2) { for (var row = 1; row <= 7; row++) add(c2, row); });
+    var circ = dots.map(function (d) {
+      return '<circle cx="' + (sx + d[0] * cell) + '" cy="' + (sy + d[1] * cell) + '" r="' + R + '" fill="' + (d[2] ? a : c) + '"/>';
+    }).join("");
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">' + circ + "</svg>";
+    return "data:image/svg+xml," + encodeURIComponent(svg);
+  }
+
+  function machineIcon(name, group, c, a) {
+    var W = 'fill="' + a + '" stroke="none"';
+    var P = {
+      press: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v9"/><path d="M20 21l-4 8"/><path d="M20 21l4 8"/><path d="M20 14l-6-3"/><path d="M20 14l6-3"/><path d="M11 11h18"/><circle cx="11" cy="11" r="2.4" ' + W + '/><circle cx="29" cy="11" r="2.4" ' + W + '/>',
+      curl: '<circle cx="18" cy="9" r="2.6"/><path d="M18 12v10"/><path d="M18 22l-4 7"/><path d="M18 22l4 7"/><path d="M18 14l4 5"/><path d="M22 19l-3-4"/><circle cx="19" cy="14.5" r="2.4" ' + W + '/>',
+      lateral: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14h-9"/><path d="M20 14h9"/><circle cx="10" cy="14" r="2.4" ' + W + '/><circle cx="30" cy="14" r="2.4" ' + W + '/>',
+      fly: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14c-6 0-9 2-9 6"/><path d="M20 14c6 0 9 2 9 6"/><circle cx="11" cy="20" r="2.4" ' + W + '/><circle cx="29" cy="20" r="2.4" ' + W + '/>',
+      pulldown: '<path d="M12 7h16"/><circle cx="12" cy="7" r="2.2" ' + W + '/><circle cx="28" cy="7" r="2.2" ' + W + '/><circle cx="20" cy="15" r="2.6"/><path d="M20 18v6"/><path d="M20 18l-5-9"/><path d="M20 18l5-9"/><path d="M20 24l-4 6"/><path d="M20 24l5 3v3"/>',
+      row: '<path d="M30 7v25"/><circle cx="15" cy="12" r="2.6"/><path d="M15 15v6"/><path d="M15 21h7l3 8"/><path d="M15 16h9"/><circle cx="24" cy="16" r="2.4" ' + W + '/><path d="M26 16h4"/>',
+      pullup: '<path d="M9 8h22"/><path d="M16 8v3"/><path d="M24 8v3"/><circle cx="20" cy="14" r="2.6"/><path d="M16 11l4 3 4-3"/><path d="M20 17v8"/><path d="M20 25l-3 6"/><path d="M20 25l3 6"/>',
+      backext: '<path d="M7 31l12-7"/><circle cx="16" cy="18" r="2.6"/><path d="M16 21l8 5"/><path d="M24 26l6-2"/><path d="M16 21l-3 8"/><circle cx="30" cy="24" r="2.4" ' + W + '/>',
+      legpress: '<path d="M8 30v-7a2 2 0 0 1 2-2h3"/><path d="M8 30h8"/><circle cx="12" cy="17" r="2.5"/><path d="M14 21l10-6"/><path d="M24 15l5-3"/><path d="M26 8l6 4-4 6z" ' + W + '/>',
+      legext: '<path d="M10 13v11"/><path d="M10 24h6"/><circle cx="13" cy="10" r="2.4"/><path d="M16 24h5"/><path d="M21 24l8-3"/><circle cx="29" cy="21" r="2.4" ' + W + '/>',
+      legcurl: '<path d="M7 27h16"/><circle cx="11" cy="22.5" r="2.4"/><path d="M13 24h9"/><path d="M22 24l3-7"/><circle cx="25" cy="17" r="2.4" ' + W + '/>',
+      squat: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v6"/><path d="M13 12h14"/><circle cx="13" cy="12" r="2.2" ' + W + '/><circle cx="27" cy="12" r="2.2" ' + W + '/><path d="M20 18l-5 5v6"/><path d="M20 18l5 5v6"/>',
+      calf: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v13"/><path d="M14 12h12"/><circle cx="14" cy="12" r="2.2" ' + W + '/><circle cx="26" cy="12" r="2.2" ' + W + '/><path d="M20 25l-4 5"/><path d="M20 25l4 5"/><path d="M14 30h12"/>',
+      pushdown: '<path d="M12 7h16"/><circle cx="20" cy="9.5" r="2.6"/><path d="M20 12.5v8"/><path d="M20 20.5l-4 7"/><path d="M20 20.5l4 7"/><path d="M20 15l-4 4v4"/><path d="M16 9.5v5.5"/><circle cx="16" cy="23" r="2.4" ' + W + '/>',
+      crunch: '<path d="M7 29h18"/><path d="M20 28l3-5"/><path d="M20 28l-6-4"/><circle cx="12" cy="20" r="2.6"/><path d="M14 22l5 5"/><path d="M14 21l5-1"/>',
+    }[iconKey(name, group)];
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" stroke="' + c + '" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">' + P + "</svg>";
+    return "data:image/svg+xml," + encodeURIComponent(svg);
+  }
+
+  // ════════════════════════ RENDER ════════════════════════
+  function render() {
+    var isDark = state.theme === "dark";
+    app.setAttribute("data-theme", isDark ? "dark" : "light");
+    document.querySelector('meta[name="theme-color"]').setAttribute("content", isDark ? "#000000" : "#f4f4f2");
+
+    var iconStroke = isDark ? "#d6d6d6" : "#3a3a3a";
+    var iconAccent = "#D71921";
+    var ul = state.unit;
+
+    var html = "";
+    if (state.screen === "login") html = viewLogin(isDark, iconAccent);
+    else if (state.screen === "home") html = viewHome(ul, iconStroke, iconAccent);
+    else if (state.screen === "machine") html = viewMachine(ul);
+    else if (state.screen === "add") html = viewAdd();
+    else if (state.screen === "settings") html = viewSettings(isDark, ul);
+
+    // preserve focus + caret across full re-render
+    var act = document.activeElement;
+    var focusId = act && act.id && app.contains(act) ? act.id : null;
+    var selStart = focusId ? act.selectionStart : null;
+    var selEnd = focusId ? act.selectionEnd : null;
+
+    app.innerHTML = html;
+
+    if (focusId) {
+      var nx = document.getElementById(focusId);
+      if (nx) {
+        nx.focus();
+        try { if (selStart != null) nx.setSelectionRange(selStart, selEnd); } catch (e) {}
+      }
+    }
+  }
+
+  // ── LOGIN ──
+  function viewLogin(isDark, iconAccent) {
+    var mark = brandMark(isDark ? "#f3f3f1" : "#111111", iconAccent);
+    var dots = [0, 1, 2, 3].map(function (i) {
+      var filled = i < state.pinDraft.length;
+      return filled
+        ? '<span style="width:12px;height:12px;border-radius:50%;background:var(--accent);"></span>'
+        : '<span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--border);"></span>';
+    }).join("");
+    var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"].map(function (d) {
+      return '<button data-action="pin" data-d="' + d + '" class="hov-accent" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;">' + d + "</button>";
+    }).join("");
+
+    return '<div class="screen" style="display:flex;flex-direction:column;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:22px 22px;">' +
+      '<div style="flex:1;overflow:auto;display:flex;flex-direction:column;justify-content:center;padding:54px 30px 40px;">' +
+        '<img src="' + mark + '" alt="ForgeLift" style="width:58px;height:58px;display:block;margin-bottom:24px;" />' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">' +
+          '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 2.4s infinite;"></span>' +
+          '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Gym Tracker</span>' +
+        '</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:34px;">FORGE<br>LIFT</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Username</div>' +
+        '<input id="input-username" value="' + esc(state.usernameDraft) + '" placeholder="enter name" autocomplete="off" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;letter-spacing:0.02em;margin-bottom:22px;" />' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+          '<span style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);">PIN</span>' +
+          '<div style="display:flex;gap:10px;">' + dots + '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;">' +
+          keys +
+          '<div></div>' +
+          '<button data-action="pin" data-d="0" class="hov-accent" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;">0</button>' +
+          '<button data-action="pin-del" class="hov-text" style="height:58px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:13px;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">DEL</button>' +
+        '</div>' +
+        '<div style="height:18px;margin-top:14px;font-size:11px;letter-spacing:0.08em;color:var(--accent);text-align:center;">' + esc(state.loginError) + '</div>' +
+        '<button data-action="do-login" class="hov-bright" style="width:100%;margin-top:6px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.22em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;">Enter →</button>' +
+        '<div style="text-align:center;margin-top:14px;font-size:10px;letter-spacing:0.1em;color:var(--muted);">New name + any 4-digit PIN creates an account</div>' +
+      '</div></div>';
+  }
+
+  // ── HOME ──
+  function viewHome(ul, iconStroke, iconAccent) {
+    var q = state.search.trim().toLowerCase();
+    var filt = state.machines.filter(function (m) { return !q || m.name.toLowerCase().includes(q); });
+
+    var mkRow = function (m) {
+      var sess = state.logs[m.id] || [];
+      var last = sess.length ? sess[sess.length - 1] : null;
+      var lastMax = last ? Math.max.apply(null, last.sets.map(function (s) { return s.weight; })) : null;
+      var detail = lastMax != null ? dispW(lastMax) + " " + ul : "—";
+      var thumb = m.photo
+        ? '<img src="' + esc(m.photo) + '" style="width:42px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);" />'
+        : '<div style="width:42px;height:42px;border-radius:4px;flex-shrink:0;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="' + machineIcon(m.name, m.group, iconStroke, iconAccent) + '" style="width:100%;height:100%;object-fit:contain;display:block;" /></div>';
+      var favDot = m.fav
+        ? '<span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span>'
+        : '<span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);"></span>';
+      return '<div data-action="open-machine" data-id="' + esc(m.id) + '" style="display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer;">' +
+        thumb +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:15px;color:var(--text);letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(m.name) + '</div>' +
+          '<div style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Last · ' + esc(detail) + '</div>' +
+        '</div>' +
+        '<button data-action="toggle-fav" data-id="' + esc(m.id) + '" style="width:34px;height:34px;flex-shrink:0;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + favDot + '</button>' +
+      '</div>';
+    };
+
+    var groups = [];
+    var favs = filt.filter(function (m) { return m.fav; });
+    if (favs.length) groups.push({ group: "Favorites", count: favs.length, items: favs });
+    GROUPS.forEach(function (g) {
+      var items = filt.filter(function (m) { return m.group === g; });
+      if (items.length) groups.push({ group: g, count: items.length, items: items });
+    });
+    filt.forEach(function (m) {
+      if (GROUPS.indexOf(m.group) === -1) {
+        var grp = groups.find(function (x) { return x.group === m.group; });
+        if (!grp) { grp = { group: m.group, count: 0, items: [] }; groups.push(grp); }
+        grp.items.push(m); grp.count = grp.items.length;
+      }
+    });
+
+    var listHtml = groups.map(function (g) {
+      return '<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">' +
+          '<span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(g.group) + '</span>' +
+          '<span style="font-size:10px;color:var(--muted);">' + g.count + '</span>' +
+          '<span style="flex:1;height:1px;background:var(--border);"></span>' +
+        '</div>' + g.items.map(mkRow).join("");
+    }).join("");
+    if (!groups.length) {
+      listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div>';
+    }
+
+    var greeting = "Hello, " + (state.user || "").toUpperCase();
+
+    return '<div class="screen" style="display:flex;flex-direction:column;">' +
+      '<div style="padding:54px 22px 12px;flex-shrink:0;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;">' +
+          '<div>' +
+            '<div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(greeting) + '</div>' +
+            '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:38px;line-height:0.95;color:var(--text);">MACHINES</div>' +
+          '</div>' +
+          '<button data-action="open-settings" class="hov-border-accent" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>' +
+          '</button>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>' +
+          '<input id="input-search" value="' + esc(state.search) + '" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" />' +
+        '</div>' +
+      '</div>' +
+      '<div style="flex:1;overflow:auto;padding:6px 22px 110px;">' + listHtml + '</div>' +
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">' +
+        '<button data-action="open-add" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">＋ Add Machine</button>' +
+      '</div></div>';
+  }
+
+  // ── MACHINE DETAIL ──
+  function viewMachine(ul) {
+    var am = state.machines.find(function (m) { return m.id === state.activeId; }) || null;
+    var amName = "", amGroup = "", amFav = false;
+    var pr = "—";
+    var chartHtml = '<div style="background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:34px 14px;text-align:center;font-size:11px;letter-spacing:0.1em;color:var(--muted);">NO DATA YET — LOG A SET BELOW</div>';
+    var historyHtml = "";
+
+    if (am) {
+      amName = am.name; amGroup = am.group; amFav = am.fav;
+      var sess = (state.logs[am.id] || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+      var sr = sess.map(function (s) { return { date: s.date, max: Math.max.apply(null, s.sets.map(function (x) { return x.weight; })) }; });
+      if (sr.length) {
+        pr = String(dispW(Math.max.apply(null, sr.map(function (s) { return s.max; }))));
+        var Wd = 300, H = 140, pL = 6, pR = 6, pT = 14, pB = 18;
+        var vals = sr.map(function (s) { return s.max; });
+        var mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals), span = (mx - mn) || 1, n = sr.length;
+        var coords = sr.map(function (s, i) {
+          var x = n === 1 ? Wd / 2 : pL + (i / (n - 1)) * (Wd - pL - pR);
+          var y = pT + (1 - (s.max - mn) / span) * (H - pT - pB);
+          return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+        });
+        var line = coords.map(function (c) { return c.x + "," + c.y; }).join(" ");
+        var area = "M" + coords[0].x + "," + (H - pB) + coords.map(function (c) { return " L" + c.x + "," + c.y; }).join("") + " L" + coords[coords.length - 1].x + "," + (H - pB) + " Z";
+        var dotsSvg = coords.map(function (d) {
+          return '<circle cx="' + d.x + '" cy="' + d.y + '" r="3.2" style="fill:var(--surface);stroke:var(--accent);stroke-width:2;"></circle>';
+        }).join("");
+        chartHtml = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 12px 8px;">' +
+            '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:2px;"><span>' + esc(dispW(mx) + " " + ul) + '</span></div>' +
+            '<svg viewBox="0 0 300 140" width="100%" style="display:block;overflow:visible;">' +
+              '<path d="' + area + '" style="fill:var(--accent);fill-opacity:0.10;stroke:none;"></path>' +
+              '<polyline points="' + line + '" style="fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;"></polyline>' +
+              dotsSvg +
+            '</svg>' +
+            '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px;"><span>' + esc(fmtDate(sr[0].date)) + '</span><span>' + esc(fmtDate(sr[sr.length - 1].date)) + '</span></div>' +
+          '</div>';
+      }
+      var hist = (state.logs[am.id] || []).slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 8);
+      if (hist.length) {
+        historyHtml = '<div style="margin-top:28px;display:flex;align-items:center;gap:10px;">' +
+            '<span style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">History</span>' +
+            '<span style="flex:1;height:1px;background:var(--border);"></span>' +
+          '</div>' +
+          hist.map(function (s) {
+            var max = String(dispW(Math.max.apply(null, s.sets.map(function (x) { return x.weight; }))));
+            var summary = s.sets.length + " SETS · " + s.sets.map(function (x) { return x.reps; }).join("/") + " REPS";
+            return '<div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">' +
+                '<div>' +
+                  '<div style="font-size:12px;letter-spacing:0.1em;color:var(--text);">' + esc(fmtDate(s.date)) + '</div>' +
+                  '<div style="font-size:10px;letter-spacing:0.06em;color:var(--muted);margin-top:3px;">' + esc(summary) + '</div>' +
+                '</div>' +
+                '<div style="display:flex;align-items:baseline;gap:4px;"><span style="font-family:\'Doto\',monospace;font-weight:700;font-size:22px;color:var(--text);">' + esc(max) + '</span><span style="font-size:10px;color:var(--muted);">' + esc(ul) + '</span></div>' +
+              '</div>';
+          }).join("");
+      }
+    }
+
+    var draftRows = state.draft.map(function (st, i) {
+      var label = String(i + 1).padStart(2, "0");
+      return '<div style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 13px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">' +
+            '<span style="font-family:\'Doto\',monospace;font-weight:700;font-size:15px;letter-spacing:0.1em;color:var(--text);">SET ' + label + '</span>' +
+            '<button data-action="remove-set" data-i="' + i + '" class="hov-accent-text" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:11px;letter-spacing:0.1em;">REMOVE</button>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;">' +
+            '<div style="flex:1;">' +
+              '<div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Reps</div>' +
+              '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;">' +
+                '<button data-action="rep-dn" data-i="' + i + '" class="hov-step" style="width:38px;height:42px;background:var(--bg);border:none;border-right:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;">−</button>' +
+                '<span style="flex:1;text-align:center;font-family:\'Doto\',monospace;font-weight:700;font-size:20px;color:var(--text);">' + st.reps + '</span>' +
+                '<button data-action="rep-up" data-i="' + i + '" class="hov-step" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;">+</button>' +
+              '</div>' +
+            '</div>' +
+            '<div style="flex:1.4;">' +
+              '<div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Weight · ' + esc(ul) + '</div>' +
+              '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;">' +
+                '<button data-action="w-dn" data-i="' + i + '" class="hov-step" style="width:38px;height:42px;background:var(--bg);border:none;border-right:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;">−</button>' +
+                '<span style="flex:1;text-align:center;font-family:\'Doto\',monospace;font-weight:700;font-size:20px;color:var(--text);">' + dispW(st.weight) + '</span>' +
+                '<button data-action="w-up" data-i="' + i + '" class="hov-step" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;">+</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }).join("");
+
+    var amFavDot = amFav
+      ? '<span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span>'
+      : '<span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--muted);"></span>';
+
+    var saveBar = state.draft.length > 0
+      ? '<button data-action="save-session" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Save Session ✓</button>'
+      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">Add a set to save</div>';
+
+    return '<div class="screen" style="display:flex;flex-direction:column;">' +
+      '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">' +
+        '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
+        '<button data-action="toggle-am-fav" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + amFavDot + '</button>' +
+      '</div>' +
+      '<div style="flex:1;overflow:auto;padding:4px 22px 120px;">' +
+        '<div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(amGroup) + '</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:20px;">' + esc(amName) + '</div>' +
+        '<div style="display:flex;align-items:flex-end;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--border);">' +
+          '<div>' +
+            '<div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Personal Best</div>' +
+            '<div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:\'Doto\',monospace;font-weight:900;font-size:54px;line-height:0.8;color:var(--accent);">' + esc(pr) + '</span><span style="font-size:14px;color:var(--muted);">' + esc(ul) + '</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:22px;">' +
+          '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:12px;">Max Weight · Over Time</div>' +
+          chartHtml +
+        '</div>' +
+        '<div style="margin-top:26px;display:flex;align-items:center;gap:10px;">' +
+          '<span style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">Today\'s Sets</span>' +
+          '<span style="flex:1;height:1px;background:var(--border);"></span>' +
+        '</div>' +
+        draftRows +
+        '<div style="display:flex;gap:10px;margin-top:12px;">' +
+          '<button data-action="add-set" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">＋ Add Set</button>' +
+          '<button data-action="dup-set" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">⎘ Duplicate Last</button>' +
+        '</div>' +
+        historyHtml +
+      '</div>' +
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">' + saveBar + '</div>' +
+    '</div>';
+  }
+
+  // ── ADD MACHINE ──
+  function viewAdd() {
+    var chips = GROUPS.map(function (g) {
+      var active = g === state.addGroup;
+      var dot = active
+        ? '<span style="width:8px;height:8px;border-radius:50%;background:var(--accent);"></span>'
+        : '<span style="width:8px;height:8px;border-radius:50%;border:1px solid var(--border);"></span>';
+      return '<button data-action="pick-group" data-g="' + esc(g) + '" style="display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;padding:10px 14px;border-radius:4px;cursor:pointer;">' + dot + esc(g) + '</button>';
+    }).join("");
+
+    var photo = state.addPhoto
+      ? '<img src="' + esc(state.addPhoto) + '" style="width:100%;height:200px;object-fit:cover;border:1px solid var(--border);border-radius:6px;" />'
+      : '<div style="width:100%;height:200px;border:1px dashed var(--border);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);">' +
+          '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.6"></circle><path d="M21 15l-5-5L5 21"></path></svg>' +
+          '<span style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;">Tap to choose from gallery</span>' +
+        '</div>';
+
+    var saveBar = state.addName.trim().length > 0
+      ? '<button data-action="save-machine" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Save Machine ✓</button>'
+      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">Enter a name to save</div>';
+
+    return '<div class="screen" style="display:flex;flex-direction:column;">' +
+      '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">' +
+        '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:30px;color:var(--text);">NEW MACHINE</div>' +
+      '</div>' +
+      '<div style="flex:1;overflow:auto;padding:8px 22px 120px;">' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Name</div>' +
+        '<input id="input-addname" value="' + esc(state.addName) + '" placeholder="e.g. Smith Machine" autocomplete="off" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;margin-bottom:24px;" />' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Muscle Group</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:26px;">' + chips + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Photo</div>' +
+        '<label style="display:block;cursor:pointer;">' +
+          '<input id="input-photo" type="file" accept="image/*" style="display:none;" />' + photo +
+        '</label>' +
+      '</div>' +
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">' + saveBar + '</div>' +
+    '</div>';
+  }
+
+  // ── SETTINGS ──
+  function viewSettings(isDark, ul) {
+    var seg = function (label, action, active) {
+      var st = active
+        ? "background:var(--text);color:var(--bg);border:1px solid var(--text);"
+        : "background:transparent;color:var(--muted);border:1px solid var(--border);";
+      return '<button data-action="' + action + '" style="flex:1;' + st + 'font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">' + label + '</button>';
+    };
+    var unitSeg = function (label, action, active) {
+      var st = active
+        ? "background:var(--accent);color:#fff;border:1px solid var(--accent);"
+        : "background:transparent;color:var(--muted);border:1px solid var(--border);";
+      return '<button data-action="' + action + '" style="flex:1;' + st + 'font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">' + label + '</button>';
+    };
+    var initial = (state.user || "?").charAt(0).toUpperCase();
+
+    return '<div class="screen" style="display:flex;flex-direction:column;">' +
+      '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">' +
+        '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:32px;color:var(--text);">SETTINGS</div>' +
+      '</div>' +
+      '<div style="flex:1;overflow:auto;padding:18px 22px 40px;">' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Appearance</div>' +
+        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + seg("Light", "theme-light", !isDark) + seg("Dark", "theme-dark", isDark) + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Weight Unit</div>' +
+        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg("Kilograms", "unit-kg", ul === "kg") + unitSeg("Pounds", "unit-lb", ul === "lb") + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Account</div>' +
+        '<div style="display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:15px;margin-bottom:14px;">' +
+          '<div style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:\'Doto\',monospace;font-weight:900;font-size:20px;color:#fff;">' + esc(initial) + '</div>' +
+          '<div><div style="font-size:15px;color:var(--text);">' + esc(state.user) + '</div><div style="font-size:10px;letter-spacing:0.14em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Signed in</div></div>' +
+        '</div>' +
+        '<button data-action="logout" class="hov-border-accent" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--accent);font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Log Out</button>' +
+        '<div style="text-align:center;margin-top:34px;font-family:\'Doto\',monospace;font-weight:700;font-size:13px;letter-spacing:0.3em;color:var(--muted);">FORGELIFT · v1.0</div>' +
+      '</div></div>';
+  }
+
+  // ════════════════════════ EVENTS ════════════════════════
+  var ACTIONS = {
+    "pin": function (el) { pinPress(el.getAttribute("data-d")); },
+    "pin-del": pinDel,
+    "do-login": doLogin,
+    "open-settings": openSettings,
+    "open-add": openAdd,
+    "go-home": goHome,
+    "open-machine": function (el) { openMachine(el.getAttribute("data-id")); },
+    "toggle-fav": function (el) { toggleFav(el.getAttribute("data-id")); },
+    "toggle-am-fav": function () { if (state.activeId) toggleFav(state.activeId); },
+    "add-set": addSet,
+    "dup-set": duplicateLast,
+    "rep-up": function (el) { repsDelta(+el.getAttribute("data-i"), 1); },
+    "rep-dn": function (el) { repsDelta(+el.getAttribute("data-i"), -1); },
+    "w-up": function (el) { weightDelta(+el.getAttribute("data-i"), 1); },
+    "w-dn": function (el) { weightDelta(+el.getAttribute("data-i"), -1); },
+    "remove-set": function (el) { removeSet(+el.getAttribute("data-i")); },
+    "save-session": saveSession,
+    "pick-group": function (el) { setState({ addGroup: el.getAttribute("data-g") }); },
+    "save-machine": saveMachine,
+    "theme-light": function () { setTheme("light"); },
+    "theme-dark": function () { setTheme("dark"); },
+    "unit-kg": function () { setUnit("kg"); },
+    "unit-lb": function () { setUnit("lb"); },
+    "logout": logout,
+  };
+
+  app.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-action]");
+    if (!el || !app.contains(el)) return;
+    var fn = ACTIONS[el.getAttribute("data-action")];
+    if (fn) { e.stopPropagation(); fn(el); }
+  });
+
+  app.addEventListener("input", function (e) {
+    var id = e.target.id;
+    if (id === "input-username") { state.usernameDraft = e.target.value; state.loginError = ""; render(); }
+    else if (id === "input-search") { state.search = e.target.value; render(); }
+    else if (id === "input-addname") { state.addName = e.target.value; render(); }
+  });
+
+  app.addEventListener("change", function (e) {
+    if (e.target.id === "input-photo") {
+      handlePhoto(e.target.files && e.target.files[0]);
+    }
+  });
+
+  // Submit username field with Enter
+  app.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target.id === "input-username") { e.preventDefault(); doLogin(); }
+  });
+
+  render();
+})();

@@ -1,0 +1,95 @@
+/* ForgeLift — Nothing-style gym tracker
+   Vanilla CSS. Design tokens mirror the original Claude Design prototype. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: #cfcdc8;
+  background-image: radial-gradient(#bdbbb5 1px, transparent 1px);
+  background-size: 20px 20px;
+  font-family: 'Space Mono', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+input { font-family: 'Space Mono', monospace; }
+::placeholder { color: var(--muted); opacity: 1; }
+::-webkit-scrollbar { width: 0; height: 0; }
+
+@keyframes rl-pop   { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes rl-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+/* ── Device frame: phone on desktop, full-bleed on small screens ── */
+.device {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+}
+
+@media (min-width: 480px) {
+  body { padding: 32px 20px; }
+  .device {
+    width: min(430px, 100%);
+    height: min(900px, calc(100vh - 64px));
+  }
+  #app {
+    border-radius: 44px;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* ── Theme tokens ── */
+#app[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #0f0f0f;
+  --border: #262626;
+  --text: #ffffff;
+  --muted: #7d7d7d;
+  --accent: #D71921;
+  --dot: #161616;
+}
+#app[data-theme="light"] {
+  --bg: #f4f4f2;
+  --surface: #ffffff;
+  --border: #dddcd7;
+  --text: #0a0a0a;
+  --muted: #9a9a94;
+  --accent: #D71921;
+  --dot: #e4e3de;
+}
+
+/* ── Hover behaviors (ported from the prototype's style-hover) ── */
+@media (hover: hover) {
+  .hov-accent:hover { border-color: var(--accent) !important; color: var(--accent) !important; }
+  .hov-text:hover   { border-color: var(--text) !important; color: var(--text) !important; }
+  .hov-bright:hover { filter: brightness(1.12); }
+  .hov-invert:hover { background: var(--accent) !important; color: #fff !important; }
+  .hov-step:hover   { background: var(--accent) !important; color: #fff !important; }
+  .hov-accent-text:hover { color: var(--accent) !important; }
+  .hov-border-accent:hover { border-color: var(--accent) !important; }
+}
+
+button { font-family: 'Space Mono', monospace; }
+.screen { height: 100%; }
