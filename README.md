@@ -1,6 +1,6 @@
 # ForgeLift
 
-A gym workout tracker — log the weight and reps of every set on each machine, mark favorites, and watch your max weight climb over time. **Nothing-style** UI: dot-matrix type, monochrome black/white, single red accent, dark + light mode.
+A gym workout tracker — log the weight and reps of every set on each strength machine (or time, distance and calories on cardio machines), mark favorites, and watch your numbers climb over time. **Nothing-style** UI: dot-matrix type, monochrome black/white, single red accent, dark + light mode.
 
 The original Claude Design prototype has been brought to life as a **real, runnable web app** built with plain **HTML, CSS and vanilla JS** — no build step, no framework. Data lives in the browser (`localStorage`).
 
@@ -29,10 +29,10 @@ Log in with **any username + any 4-digit PIN**. A new name seeds a demo account 
 ## Features
 
 - **Login** — username + PIN pad (visual demo gate; see *Notes*).
-- **Machines** grouped by muscle group, with favorites and search.
-- **Per-machine line illustrations** (dot-matrix, theme-aware, generated in JS).
-- **Set logging** — +/− steppers for reps & weight, "duplicate last set", save session.
-- **Progress chart** — max weight per session over time (inline SVG).
+- **Machines** grouped by muscle group plus a **Cardio** category, with favorites and search. A broad starter catalog (chest, back, legs, shoulders, arms, core and cardio).
+- **Per-machine line illustrations** (dot-matrix, theme-aware, generated in JS) — including cardio icons (treadmill, bike, rower, stairs…).
+- **Context-aware logging** — strength machines use +/− steppers for reps & weight; **cardio machines** (treadmill, bike, elliptical, rower…) drop reps/weight and log **duration, distance & calories** instead. Distance follows your unit (km / mi). "Duplicate last", save session.
+- **Progress chart** — max weight per session for strength, longest duration per session for cardio (inline SVG).
 - **Add machine** with a photo from your gallery.
 - **Settings** — light/dark theme, kg/lb units, logout.
 - **Backup & restore** — export your account to a `.json` file and load it back later (move data between devices / keep a safety copy).

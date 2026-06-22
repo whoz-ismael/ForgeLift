@@ -19,6 +19,18 @@ window.confirm = () => true;
 window.alert = () => {};
 window.URL.createObjectURL = () => "blob:mock";
 window.URL.revokeObjectURL = () => {};
+// jsdom 24 doesn't implement Blob/File.prototype.text(); back it with FileReader
+// (which jsdom does support) so the share-sheet export test can read the payload.
+if (!window.Blob.prototype.text) {
+  window.Blob.prototype.text = function () {
+    return new Promise((resolve, reject) => {
+      const fr = new window.FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(fr.error);
+      fr.readAsText(this);
+    });
+  };
+}
 
 // Run the app script in the window context
 window.eval(js);
@@ -33,6 +45,11 @@ function setInput(sel, val) {
   const el = $(sel);
   el.value = val;
   el.dispatchEvent(new window.Event("input", { bubbles: true }));
+}
+function idByName(name) {
+  const rows = [...document.querySelectorAll('[data-action="open-machine"]')];
+  const row = rows.find((r) => r.textContent.includes(name));
+  return row && row.getAttribute("data-id");
 }
 
 let pass = 0, fail = 0;
@@ -81,6 +98,23 @@ click('[data-action="save-session"]');
 check("session saved (draft cleared)", !/SET 01/.test($("#app").textContent));
 check("chart now rendered after first session", !!$("polyline"));
 check("persisted to localStorage", !!store.getItem("replog:demo"));
+
+console.log("CARDIO MACHINE (context-aware logging)");
+click('[data-action="go-home"]'); // back from the Chest Press detail
+const tid = idByName("Treadmill");
+check("treadmill present in expanded catalog", !!tid);
+click('[data-action="open-machine"][data-id="' + tid + '"]');
+check("cardio shows Longest Time, not Personal Best", /Longest Time/.test($("#app").textContent) && !/Personal Best/.test($("#app").textContent));
+check("cardio chart titled by duration", /Duration · Over Time/.test($("#app").textContent));
+click('[data-action="add-set"]');
+check("cardio adds an Interval (not a Set)", /INTERVAL 01/.test($("#app").textContent) && !/SET 01/.test($("#app").textContent));
+check("cardio logs duration/distance, not reps/weight", /Duration/.test($("#app").textContent) && /Distance/.test($("#app").textContent) && !/Reps/.test($("#app").textContent));
+click('[data-action="dur-up"]');
+click('[data-action="dist-up"]');
+click('[data-action="cal-up"]');
+click('[data-action="save-session"]');
+check("cardio session saved (draft cleared)", !/INTERVAL 01/.test($("#app").textContent));
+check("cardio chart rendered after first session", !!$("polyline"));
 
 console.log("ADD MACHINE");
 click('[data-action="go-home"]');
