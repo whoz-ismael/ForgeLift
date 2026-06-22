@@ -136,14 +136,14 @@
           <!-- PR stat -->
           <div style="display:flex;align-items:flex-end;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--border);">
             <div>
-              <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Personal Best</div>
-              <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:'Doto',monospace;font-weight:900;font-size:54px;line-height:0.8;color:var(--accent);">{{ pr }}</span><span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--muted);">{{ ul }}</span></div>
+              <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">{{ pbLabel }}</div>
+              <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:'Doto',monospace;font-weight:900;font-size:54px;line-height:0.8;color:var(--accent);">{{ pr }}</span><span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--muted);">{{ pbUnit }}</span></div>
             </div>
           </div>
 
           <!-- CHART -->
           <div style="margin-top:22px;">
-            <div style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:12px;">Max Weight · Over Time</div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:12px;">{{ chartTitle }}</div>
             <sc-if value="{{ chart.has }}">
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 12px 8px;">
               <div style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:2px;"><span>{{ chart.topLabel }}</span></div>
@@ -157,21 +157,23 @@
               <div style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;"><span>{{ chart.xFirst }}</span><span>{{ chart.xLast }}</span></div>
             </div>
             </sc-if>
-            <sc-if value="{{ chart.empty }}"><div style="background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:34px 14px;text-align:center;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:var(--muted);">NO DATA YET — LOG A SET BELOW</div></sc-if>
+            <sc-if value="{{ chart.empty }}"><div style="background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:34px 14px;text-align:center;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;color:var(--muted);">{{ chartEmptyText }}</div></sc-if>
           </div>
 
           <!-- TODAY'S SETS -->
           <div style="margin-top:26px;display:flex;align-items:center;gap:10px;">
-            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">Today's Sets</span>
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">{{ setsTitle }}</span>
             <span style="flex:1;height:1px;background:var(--border);"></span>
           </div>
 
           <sc-for list="{{ draftRows }}" as="s" hint-placeholder-count="2">
             <div style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 13px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
-                <span style="font-family:'Doto',monospace;font-weight:700;font-size:15px;letter-spacing:0.1em;color:var(--text);">SET {{ s.label }}</span>
+                <span style="font-family:'Doto',monospace;font-weight:700;font-size:15px;letter-spacing:0.1em;color:var(--text);">{{ s.entryLabel }}</span>
                 <button onClick="{{ s.onRem }}" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;" style-hover="color:var(--accent);">REMOVE</button>
               </div>
+              <!-- STRENGTH: reps + weight -->
+              <sc-if value="{{ s.strength }}">
               <div style="display:flex;gap:10px;">
                 <div style="flex:1;">
                   <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Reps</div>
@@ -190,11 +192,41 @@
                   </div>
                 </div>
               </div>
+              </sc-if>
+              <!-- CARDIO: duration + distance + calories -->
+              <sc-if value="{{ s.cardio }}">
+              <div style="display:flex;gap:10px;">
+                <div style="flex:1;">
+                  <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Duration · min</div>
+                  <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+                    <button onClick="{{ s.onDurDn }}" style="width:38px;height:42px;background:var(--bg);border:none;border-right:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">−</button>
+                    <span style="flex:1;text-align:center;font-family:'Doto',monospace;font-weight:700;font-size:20px;color:var(--text);">{{ s.duration }}</span>
+                    <button onClick="{{ s.onDurUp }}" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">+</button>
+                  </div>
+                </div>
+                <div style="flex:1;">
+                  <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Distance · {{ distUnit }}</div>
+                  <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+                    <button onClick="{{ s.onDistDn }}" style="width:38px;height:42px;background:var(--bg);border:none;border-right:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">−</button>
+                    <span style="flex:1;text-align:center;font-family:'Doto',monospace;font-weight:700;font-size:20px;color:var(--text);">{{ s.distance }}</span>
+                    <button onClick="{{ s.onDistUp }}" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">+</button>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:10px;">
+                <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Calories · kcal</div>
+                <div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+                  <button onClick="{{ s.onCalDn }}" style="width:38px;height:42px;background:var(--bg);border:none;border-right:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">−</button>
+                  <span style="flex:1;text-align:center;font-family:'Doto',monospace;font-weight:700;font-size:20px;color:var(--text);">{{ s.calories }}</span>
+                  <button onClick="{{ s.onCalUp }}" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">+</button>
+                </div>
+              </div>
+              </sc-if>
             </div>
           </sc-for>
 
           <div style="display:flex;gap:10px;margin-top:12px;">
-            <button onClick="{{ onAddSet }}" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">＋ Add Set</button>
+            <button onClick="{{ onAddSet }}" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">{{ addSetLabel }}</button>
             <button onClick="{{ onDup }}" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">⎘ Duplicate Last</button>
           </div>
 
@@ -210,7 +242,7 @@
                 <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.1em;color:var(--text);">{{ h.date }}</div>
                 <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.06em;color:var(--muted);margin-top:3px;">{{ h.summary }}</div>
               </div>
-              <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-family:'Doto',monospace;font-weight:700;font-size:22px;color:var(--text);">{{ h.max }}</span><span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">{{ ul }}</span></div>
+              <div style="display:flex;align-items:baseline;gap:4px;"><span style="font-family:'Doto',monospace;font-weight:700;font-size:22px;color:var(--text);">{{ h.big }}</span><span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">{{ h.bigUnit }}</span></div>
             </div>
           </sc-for>
           </sc-if>
@@ -218,7 +250,7 @@
 
         <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">
           <sc-if value="{{ canSave }}"><button onClick="{{ onSave }}" style="width:100%;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">Save Session ✓</button></sc-if>
-          <sc-if value="{{ cantSave }}"><div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">Add a set to save</div></sc-if>
+          <sc-if value="{{ cantSave }}"><div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">{{ cantSaveText }}</div></sc-if>
         </div>
       </div>
       </sc-if>
@@ -319,21 +351,40 @@ class Component extends DCLogic {
       addName: '', addGroup: 'Chest', addPhoto: null,
     };
     this.LB = 0.45359237;
-    this.GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+    this.MI = 1.609344; // kilometres per mile
+    this.GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio'];
   }
 
   // ── seed data ──
   seed() {
     const base = [
-      ['Chest Press','Chest'],['Pec Deck','Chest'],['Incline Press','Chest'],['Cable Crossover','Chest'],
-      ['Lat Pulldown','Back'],['Seated Row','Back'],['Assisted Pull-Up','Back'],['Back Extension','Back'],
-      ['Leg Press','Legs'],['Leg Extension','Legs'],['Leg Curl','Legs'],['Hack Squat','Legs'],['Calf Raise','Legs'],
+      // Chest
+      ['Chest Press','Chest'],['Incline Press','Chest'],['Decline Press','Chest'],
+      ['Pec Deck','Chest'],['Cable Crossover','Chest'],['Assisted Dip','Chest'],
+      // Back
+      ['Lat Pulldown','Back'],['Seated Row','Back'],['T-Bar Row','Back'],['Machine Row','Back'],
+      ['Assisted Pull-Up','Back'],['Back Extension','Back'],['Lat Pullover','Back'],
+      // Legs
+      ['Leg Press','Legs'],['Hack Squat','Legs'],['Leg Extension','Legs'],['Leg Curl','Legs'],
+      ['Calf Raise','Legs'],['Hip Abduction','Legs'],['Hip Adduction','Legs'],
+      ['Glute Kickback','Legs'],['Hip Thrust','Legs'],
+      // Shoulders
       ['Shoulder Press','Shoulders'],['Lateral Raise','Shoulders'],['Rear Delt Fly','Shoulders'],
-      ['Bicep Curl','Arms'],['Tricep Pushdown','Arms'],['Preacher Curl','Arms'],
-      ['Ab Crunch','Core'],['Cable Crunch','Core'],
+      ['Front Raise','Shoulders'],['Shrug','Shoulders'],['Upright Row','Shoulders'],
+      // Arms
+      ['Bicep Curl','Arms'],['Preacher Curl','Arms'],['Cable Curl','Arms'],['Hammer Curl','Arms'],
+      ['Tricep Pushdown','Arms'],['Tricep Extension','Arms'],
+      // Core
+      ['Ab Crunch','Core'],['Cable Crunch','Core'],['Rotary Torso','Core'],
+      ['Hanging Leg Raise','Core'],['Roman Chair','Core'],
+      // Cardio
+      ['Treadmill','Cardio'],['Stationary Bike','Cardio'],['Recumbent Bike','Cardio'],
+      ['Spin Bike','Cardio'],['Elliptical','Cardio'],['Rowing Machine','Cardio'],
+      ['Stair Climber','Cardio'],['Air Bike','Cardio'],['Ski Erg','Cardio'],['Arc Trainer','Cardio'],
     ];
     const machines = base.map((b, i) => ({ id: 'm' + i, name: b[0], group: b[1], fav: false, photo: null }));
-    machines[0].fav = true; machines[4].fav = true; machines[8].fav = true;
+    const byName = (nm) => machines.find(m => m.name === nm);
+    ['Chest Press', 'Lat Pulldown', 'Leg Press', 'Treadmill'].forEach(nm => { const m = byName(nm); if (m) m.fav = true; });
     const now = Date.now(), day = 86400000;
     const dstr = (w) => new Date(now - w * 7 * day).toISOString().slice(0, 10);
     const series = (n, start, step) => {
@@ -348,7 +399,23 @@ class Component extends DCLogic {
       }
       return out;
     };
-    const logs = { m0: series(8, 40, 2.5), m4: series(7, 45, 2.5), m8: series(8, 80, 5), m13: series(6, 25, 2.5) };
+    // Cardio history: one interval per session, time & distance climbing over weeks.
+    const cardioSeries = (n, startMin, stepMin, startKm, stepKm) => {
+      const out = [];
+      for (let k = 0; k < n; k++) {
+        const mins = startMin + k * stepMin, km = Math.round((startKm + k * stepKm) * 100) / 100;
+        out.push({ date: dstr(n - 1 - k), sets: [
+          { duration: mins, distance: km, calories: Math.round(km * 62) },
+        ]});
+      }
+      return out;
+    };
+    const idOf = (nm) => (byName(nm) || {}).id;
+    const logs = {};
+    logs[idOf('Chest Press')] = series(8, 40, 2.5);
+    logs[idOf('Lat Pulldown')] = series(7, 45, 2.5);
+    logs[idOf('Leg Press')] = series(8, 80, 5);
+    logs[idOf('Treadmill')] = cardioSeries(8, 20, 2, 3, 0.4);
     return { machines, logs };
   }
 
@@ -390,19 +457,29 @@ class Component extends DCLogic {
   // ── favorites ──
   toggleFav(id) { this.save({ machines: this.state.machines.map(m => m.id === id ? Object.assign({}, m, { fav: !m.fav }) : m) }); }
 
+  // ── machine kind ──
+  // Cardio machines log time/distance/calories instead of reps/weight; keyed off the group.
+  isCardio(m) { return !!m && m.group === 'Cardio'; }
+  activeIsCardio() { return this.isCardio(this.state.machines.find(m => m.id === this.state.activeId)); }
+
   // ── set drafting ──
   lastWeight(id) { const s = this.state.logs[id] || []; if (!s.length) return 20; const l = s[s.length - 1]; return Math.max.apply(null, l.sets.map(x => x.weight)); }
-  addSet = () => this.setState({ draft: this.state.draft.concat([{ reps: 10, weight: this.lastWeight(this.state.activeId) }]) });
-  duplicateLast = () => { const d = this.state.draft; if (!d.length) { this.addSet(); return; } const s = d[d.length - 1]; this.setState({ draft: d.concat([{ reps: s.reps, weight: s.weight }]) }); };
+  lastCardio(id) { const s = this.state.logs[id] || []; if (!s.length) return { duration: 20, distance: 0, calories: 0 }; const l = s[s.length - 1], last = l.sets[l.sets.length - 1] || {}; return { duration: last.duration || 20, distance: last.distance || 0, calories: last.calories || 0 }; }
+  addSet = () => this.setState({ draft: this.state.draft.concat([ this.activeIsCardio() ? this.lastCardio(this.state.activeId) : { reps: 10, weight: this.lastWeight(this.state.activeId) } ]) });
+  duplicateLast = () => { const d = this.state.draft; if (!d.length) { this.addSet(); return; } this.setState({ draft: d.concat([Object.assign({}, d[d.length - 1])]) }); };
   repsDelta(i, dl) { this.setState({ draft: this.state.draft.map((s, j) => j === i ? Object.assign({}, s, { reps: Math.max(1, s.reps + dl) }) : s) }); }
   weightDelta(i, dl) { const step = this.state.unit === 'lb' ? 5 * this.LB : 2.5; this.setState({ draft: this.state.draft.map((s, j) => j === i ? Object.assign({}, s, { weight: Math.max(0, Math.round((s.weight + dl * step) * 1000) / 1000) }) : s) }); }
+  durationDelta(i, dl) { this.setState({ draft: this.state.draft.map((s, j) => j === i ? Object.assign({}, s, { duration: Math.max(1, (s.duration || 0) + dl) }) : s) }); }
+  distanceDelta(i, dl) { const step = this.state.unit === 'lb' ? 0.1 * this.MI : 0.1; this.setState({ draft: this.state.draft.map((s, j) => j === i ? Object.assign({}, s, { distance: Math.max(0, Math.round(((s.distance || 0) + dl * step) * 1000) / 1000) }) : s) }); }
+  caloriesDelta(i, dl) { this.setState({ draft: this.state.draft.map((s, j) => j === i ? Object.assign({}, s, { calories: Math.max(0, (s.calories || 0) + dl * 10) }) : s) }); }
   removeSet(i) { this.setState({ draft: this.state.draft.filter((_, j) => j !== i) }); }
   saveSession = () => {
     const id = this.state.activeId, d = this.state.draft;
     if (!d.length) return;
+    const cardio = this.activeIsCardio();
     const today = new Date().toISOString().slice(0, 10);
     const logs = Object.assign({}, this.state.logs);
-    logs[id] = (logs[id] || []).concat([{ date: today, sets: d.map(s => ({ reps: s.reps, weight: s.weight })) }]);
+    logs[id] = (logs[id] || []).concat([{ date: today, sets: d.map(s => cardio ? ({ duration: s.duration || 0, distance: s.distance || 0, calories: s.calories || 0 }) : ({ reps: s.reps, weight: s.weight })) }]);
     this.save({ logs, draft: [] });
   };
 
@@ -422,10 +499,20 @@ class Component extends DCLogic {
   setUnitLb = () => this.save({ unit: 'lb' });
 
   dispW(kg) { return this.state.unit === 'lb' ? Math.round(kg / this.LB) : Math.round(kg * 10) / 10; }
+  distUnit() { return this.state.unit === 'lb' ? 'mi' : 'km'; }
+  dispDist(km) { return Math.round((this.state.unit === 'lb' ? km / this.MI : km) * 100) / 100; }
+  sumField(session, f) { return session.sets.reduce((a, x) => a + (x[f] || 0), 0); }
   fmtDate(iso) { try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase(); } catch (e) { return iso; } }
 
   iconKey(name, group) {
     const n = (name || '').toLowerCase();
+    if (group === 'Cardio') {
+      if (n.includes('tread') || n.includes('run')) return 'run';
+      if (n.includes('bike') || n.includes('cycl') || n.includes('spin')) return 'bike';
+      if (n.includes('row') || n.includes('erg') || n.includes('ski')) return 'rower';
+      if (n.includes('stair') || n.includes('step') || n.includes('climb') || n.includes('ladder')) return 'stairs';
+      return 'cardio';
+    }
     if (n.includes('pulldown')) return 'pulldown';
     if (n.includes('pull-up') || n.includes('pull up') || n.includes('pullup') || n.includes('chin')) return 'pullup';
     if (n.includes('row')) return 'row';
@@ -475,6 +562,11 @@ class Component extends DCLogic {
       calf: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v13"/><path d="M14 12h12"/><circle cx="14" cy="12" r="2.2" ${W}/><circle cx="26" cy="12" r="2.2" ${W}/><path d="M20 25l-4 5"/><path d="M20 25l4 5"/><path d="M14 30h12"/>`,
       pushdown: `<path d="M12 7h16"/><circle cx="20" cy="9.5" r="2.6"/><path d="M20 12.5v8"/><path d="M20 20.5l-4 7"/><path d="M20 20.5l4 7"/><path d="M20 15l-4 4v4"/><path d="M16 9.5v5.5"/><circle cx="16" cy="23" r="2.4" ${W}/>`,
       crunch: `<path d="M7 29h18"/><path d="M20 28l3-5"/><path d="M20 28l-6-4"/><circle cx="12" cy="20" r="2.6"/><path d="M14 22l5 5"/><path d="M14 21l5-1"/>`,
+      run: `<circle cx="20" cy="8" r="2.6"/><path d="M20 11l-2 7"/><path d="M20 13l5-1"/><path d="M20 13l-4 3"/><path d="M18 18l5 4"/><path d="M18 18l-4 7"/><path d="M6 31h28"/>`,
+      bike: `<circle cx="11" cy="28" r="4.5"/><circle cx="29" cy="28" r="4.5"/><path d="M11 28h9l4-11 5 11"/><path d="M19 17h6"/><path d="M25 17l3-3"/>`,
+      rower: `<path d="M6 30h28"/><circle cx="9" cy="25" r="3.5"/><path d="M12 25h7"/><path d="M19 25l7-4"/><path d="M26 21v-3"/><path d="M24 18h4"/>`,
+      stairs: `<path d="M7 31h7v-6h7v-6h7v-6h5"/>`,
+      cardio: `<path d="M4 20h7l2-4 3 9 2-5h18"/>`,
     }[this.iconKey(name, group)];
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" stroke="${c}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${P}</svg>`;
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
@@ -506,13 +598,21 @@ class Component extends DCLogic {
     const mkRow = (m) => {
       const sess = S.logs[m.id] || [];
       const last = sess.length ? sess[sess.length - 1] : null;
-      const lastMax = last ? Math.max.apply(null, last.sets.map(s => s.weight)) : null;
+      let detail = '—';
+      if (last) {
+        if (this.isCardio(m)) {
+          const dist = this.sumField(last, 'distance');
+          detail = dist > 0 ? this.dispDist(dist) + ' ' + this.distUnit() : this.sumField(last, 'duration') + ' min';
+        } else {
+          detail = dispW(Math.max.apply(null, last.sets.map(s => s.weight))) + ' ' + ul;
+        }
+      }
       return {
         id: m.id, name: m.name, fav: m.fav, notFav: !m.fav,
         photo: m.photo || null, noPhoto: !m.photo,
         initials: m.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(),
         icon: this.machineIcon(m.name, m.group, iconStroke, iconAccent),
-        detail: lastMax != null ? dispW(lastMax) + ' ' + ul : '—',
+        detail: detail,
         onOpen: () => this.openMachine(m.id),
         onFav: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleFav(m.id); },
       };
@@ -525,34 +625,61 @@ class Component extends DCLogic {
 
     // machine detail
     const am = S.machines.find(m => m.id === S.activeId) || null;
+    const cardio = this.isCardio(am);
     let pr = '—', chart = { has: false, empty: true }, history = [], hasHistory = false;
     let amName = '', amGroup = '', amFav = false;
     if (am) {
       amName = am.name; amGroup = am.group; amFav = am.fav;
       const sess = (S.logs[am.id] || []).slice().sort((a, b) => a.date < b.date ? -1 : 1);
-      const sr = sess.map(s => ({ date: s.date, max: Math.max.apply(null, s.sets.map(x => x.weight)) }));
+      const sr = sess.map(s => ({ date: s.date, val: cardio ? this.sumField(s, 'duration') : Math.max.apply(null, s.sets.map(x => x.weight)) }));
       if (sr.length) {
-        pr = String(dispW(Math.max.apply(null, sr.map(s => s.max))));
+        const prVal = Math.max.apply(null, sr.map(s => s.val));
+        pr = String(cardio ? prVal : dispW(prVal));
         const W = 300, H = 140, pL = 6, pR = 6, pT = 14, pB = 18;
-        const vals = sr.map(s => s.max), mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals), span = (mx - mn) || 1, n = sr.length;
+        const vals = sr.map(s => s.val), mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals), span = (mx - mn) || 1, n = sr.length;
         const coords = sr.map((s, i) => {
           const x = n === 1 ? W / 2 : pL + (i / (n - 1)) * (W - pL - pR);
-          const y = pT + (1 - (s.max - mn) / span) * (H - pT - pB);
+          const y = pT + (1 - (s.val - mn) / span) * (H - pT - pB);
           return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
         });
         const line = coords.map(c => c.x + ',' + c.y).join(' ');
         const area = 'M' + coords[0].x + ',' + (H - pB) + coords.map(c => ' L' + c.x + ',' + c.y).join('') + ' L' + coords[coords.length - 1].x + ',' + (H - pB) + ' Z';
-        chart = { has: true, empty: false, line, area, dots: coords, topLabel: dispW(mx) + ' ' + ul, xFirst: this.fmtDate(sr[0].date), xLast: this.fmtDate(sr[sr.length - 1].date) };
+        chart = { has: true, empty: false, line, area, dots: coords, topLabel: cardio ? (mx + ' min') : (dispW(mx) + ' ' + ul), xFirst: this.fmtDate(sr[0].date), xLast: this.fmtDate(sr[sr.length - 1].date) };
       }
       const hist = (S.logs[am.id] || []).slice().sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 8);
-      history = hist.map(s => ({ date: this.fmtDate(s.date), max: String(dispW(Math.max.apply(null, s.sets.map(x => x.weight)))), summary: s.sets.length + ' SETS · ' + s.sets.map(x => x.reps).join('/') + ' REPS' }));
+      history = hist.map(s => {
+        if (cardio) {
+          const dur = this.sumField(s, 'duration'), dist = this.sumField(s, 'distance'), cal = this.sumField(s, 'calories');
+          const parts = [s.sets.length + (s.sets.length === 1 ? ' INTERVAL' : ' INTERVALS')];
+          if (dist > 0) parts.push(this.dispDist(dist) + ' ' + this.distUnit());
+          if (cal > 0) parts.push(cal + ' KCAL');
+          return { date: this.fmtDate(s.date), big: String(dur), bigUnit: 'min', summary: parts.join(' · ') };
+        }
+        return { date: this.fmtDate(s.date), big: String(dispW(Math.max.apply(null, s.sets.map(x => x.weight)))), bigUnit: ul, summary: s.sets.length + ' SETS · ' + s.sets.map(x => x.reps).join('/') + ' REPS' };
+      });
       hasHistory = history.length > 0;
     }
-    const draftRows = S.draft.map((st, i) => ({
-      label: String(i + 1).padStart(2, '0'), reps: st.reps, weight: dispW(st.weight),
+    const pbLabel = cardio ? 'Longest Time' : 'Personal Best';
+    const pbUnit = cardio ? 'min' : ul;
+    const chartTitle = cardio ? 'Duration · Over Time' : 'Max Weight · Over Time';
+    const chartEmptyText = cardio ? 'NO DATA YET — LOG A SESSION BELOW' : 'NO DATA YET — LOG A SET BELOW';
+    const setsTitle = cardio ? "Today's Session" : "Today's Sets";
+    const addSetLabel = cardio ? '＋ Add Interval' : '＋ Add Set';
+    const cantSaveText = cardio ? 'Add an interval to save' : 'Add a set to save';
+    const draftRows = S.draft.map((st, i) => cardio ? {
+      entryLabel: 'INTERVAL ' + String(i + 1).padStart(2, '0'), cardio: true, strength: false,
+      duration: (st.duration || 0), distance: this.dispDist(st.distance || 0), calories: (st.calories || 0),
+      onDurUp: () => this.durationDelta(i, 1), onDurDn: () => this.durationDelta(i, -1),
+      onDistUp: () => this.distanceDelta(i, 1), onDistDn: () => this.distanceDelta(i, -1),
+      onCalUp: () => this.caloriesDelta(i, 1), onCalDn: () => this.caloriesDelta(i, -1),
+      onRem: () => this.removeSet(i),
+    } : {
+      entryLabel: 'SET ' + String(i + 1).padStart(2, '0'), cardio: false, strength: true,
+      reps: st.reps, weight: dispW(st.weight),
       onRepUp: () => this.repsDelta(i, 1), onRepDn: () => this.repsDelta(i, -1),
-      onWUp: () => this.weightDelta(i, 1), onWDn: () => this.weightDelta(i, -1), onRem: () => this.removeSet(i),
-    }));
+      onWUp: () => this.weightDelta(i, 1), onWDn: () => this.weightDelta(i, -1),
+      onRem: () => this.removeSet(i),
+    });
 
     const groupChips = this.GROUPS.map(g => ({ name: g, active: g === S.addGroup, inactive: g !== S.addGroup, onPick: () => this.setState({ addGroup: g }) }));
 
@@ -570,6 +697,7 @@ class Component extends DCLogic {
       // machine
       goHome: this.goHome, amName, amGroup, amFav, amNotFav: !amFav, onToggleAmFav: () => am && this.toggleFav(am.id),
       pr, ul, chart, history, hasHistory, draftRows,
+      pbLabel, pbUnit, chartTitle, chartEmptyText, setsTitle, addSetLabel, cantSaveText, distUnit: this.distUnit(),
       onAddSet: this.addSet, onDup: this.duplicateLast, onSave: this.saveSession,
       canSave: S.draft.length > 0, cantSave: S.draft.length === 0,
       // add
