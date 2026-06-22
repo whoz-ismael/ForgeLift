@@ -1,58 +1,73 @@
-/* ForgeLift — Supabase data layer.
+/* ForgeLift — Supabase auth + data layer.
  *
- * Per-user data lives in a single `accounts` row in Supabase Postgres. The
- * browser only ever talks to four PIN-verified RPCs (fl_login / fl_signup /
- * fl_save / fl_delete); it never touches the table directly, so PIN hashes
- * stay server-side. See supabase/migrations/0001_accounts.sql.
+ * Real authentication via Supabase Auth (Apple / Google OAuth, or email +
+ * password). Each signed-in user owns one row in the `profiles` table; Row
+ * Level Security ties every row to auth.uid(), so the user's JWT is what grants
+ * access — the browser reads and writes only its own data. See
+ * supabase/migrations/.
  *
- * Loads before js/app.js, which uses window.ForgeLiftDB. */
+ * Loads before js/app.js, which uses window.ForgeLiftAuth. */
 (function () {
   "use strict";
 
-  // Public project URL + anon key. The anon key is meant to ship in the client;
-  // it grants nothing beyond calling the locked-down RPCs above.
+  // Public project URL + anon key — safe to ship in the client. With RLS on,
+  // the anon/JWT key only ever exposes the signed-in user's own row.
   var SUPABASE_URL = "https://gsnmhmihngkjbklhkbju.supabase.co";
   var SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdzbm1obWlobmdramJrbGhrYmp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNzg4NTQsImV4cCI6MjA5NzY1NDg1NH0.OQ4ZTFdwBccFr3HT7sVk_VvQBzz2YjeX6LOtMmyV1Zk";
 
   if (!window.supabase || !window.supabase.createClient) {
     console.error("ForgeLift: supabase-js failed to load (offline?).");
+    window.ForgeLiftAuth = { ready: false };
     return;
   }
 
-  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
 
-  function rpc(fn, args) {
-    return client.rpc(fn, args).then(function (res) {
-      if (res.error) throw new Error(res.error.message || "request failed");
-      return res.data;
-    });
+  // Where OAuth providers send the user back — the app's own URL, minus any
+  // hash/query so we land cleanly and supabase-js can pick up the session.
+  function redirectTo() {
+    return window.location.href.split("#")[0].split("?")[0];
+  }
+  function oauth(provider) {
+    return client.auth.signInWithOAuth({ provider: provider, options: { redirectTo: redirectTo() } });
   }
 
-  window.ForgeLiftDB = {
-    // → {status:'new'} | {status:'ok', data:{machines,logs,unit,theme}} | {status:'bad_pin'}
-    login: function (username, pin) {
-      return rpc("fl_login", { p_username: username, p_pin: pin });
+  window.ForgeLiftAuth = {
+    ready: true,
+
+    // Fires on first load, after an OAuth redirect, and on sign in / out.
+    onChange: function (cb) {
+      client.auth.onAuthStateChange(function (_event, session) { cb(session); });
     },
-    // → {status:'ok'} | {status:'exists'}
-    signup: function (username, display, pin, data) {
-      return rpc("fl_signup", {
-        p_username: username, p_display: display, p_pin: pin,
-        p_machines: data.machines, p_logs: data.logs,
-        p_unit: data.unit, p_theme: data.theme,
-      });
+    getSession: function () {
+      return client.auth.getSession().then(function (r) { return r.data.session; });
     },
-    // → {status:'ok'} | {status:'bad_pin'} | {status:'no_account'}
-    save: function (username, pin, data) {
-      return rpc("fl_save", {
-        p_username: username, p_pin: pin,
-        p_machines: data.machines, p_logs: data.logs,
-        p_unit: data.unit, p_theme: data.theme,
-      });
+
+    signInApple:  function () { return oauth("apple"); },
+    signInGoogle: function () { return oauth("google"); },
+    signUpEmail:  function (email, password) { return client.auth.signUp({ email: email, password: password }); },
+    signInEmail:  function (email, password) { return client.auth.signInWithPassword({ email: email, password: password }); },
+    signOut:      function () { return client.auth.signOut(); },
+
+    // Data — RLS scopes every query to the current user automatically.
+    loadProfile: function () {
+      return client.from("profiles").select("machines,logs,unit,theme").maybeSingle()
+        .then(function (r) { if (r.error) throw r.error; return r.data; });
     },
-    // → {status:'ok'} | {status:'bad_pin'} | {status:'no_account'}
-    remove: function (username, pin) {
-      return rpc("fl_delete", { p_username: username, p_pin: pin });
+    saveProfile: function (userId, data) {
+      return client.from("profiles").upsert({
+        user_id: userId,
+        machines: data.machines, logs: data.logs,
+        unit: data.unit, theme: data.theme,
+        updated_at: new Date().toISOString(),
+      }).then(function (r) { if (r.error) throw r.error; });
+    },
+    deleteProfile: function (userId) {
+      return client.from("profiles").delete().eq("user_id", userId)
+        .then(function (r) { if (r.error) throw r.error; });
     },
   };
 })();

@@ -1,7 +1,7 @@
 /* ForgeLift — vanilla JS gym tracker.
  * Ported faithfully from the Claude Design prototype (ForgeLift.dc.html).
  * State lives in memory; per-user data is persisted to Supabase Postgres
- * through window.ForgeLiftDB (js/supabase.js). */
+ * through window.ForgeLiftAuth (js/supabase.js), behind Supabase Auth. */
 (function () {
   "use strict";
 
@@ -10,8 +10,11 @@
   var GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Cardio"];
 
   var state = {
-    screen: "login", theme: "dark", unit: "kg", user: null, pin: null,
-    usernameDraft: "", pinDraft: "", loginError: "", busy: false,
+    screen: "loading", theme: "dark", unit: "kg",
+    user: null,                                  // { id, name, email }
+    authMode: "signin",                          // "signin" | "signup"
+    emailDraft: "", passwordDraft: "",
+    loginError: "", loginNotice: "", busy: false,
     machines: [], logs: {}, activeId: null, draft: [], search: "",
     addName: "", addGroup: "Chest", addPhoto: null,
     settingsMsg: "", settingsMsgOk: false,
@@ -71,17 +74,17 @@
   }
 
   // ── persistence ──
-  // Pushes the current account snapshot to Supabase. Saves are chained so that
-  // rapid edits land in order (last-write-wins on the row).
+  // Pushes the current profile snapshot to Supabase. Saves are chained so that
+  // rapid edits land in order (last-write-wins on the user's row).
   var saveChain = Promise.resolve();
   function persist() {
-    var u = state.user, p = state.pin;
-    if (!u || !p) return;
+    var u = state.user;
+    if (!u) return;
     var snapshot = {
       machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme,
     };
     saveChain = saveChain
-      .then(function () { return window.ForgeLiftDB.save(u, p, snapshot); })
+      .then(function () { return window.ForgeLiftAuth.saveProfile(u.id, snapshot); })
       .catch(function (e) { console.error("ForgeLift: save failed —", e && e.message); });
   }
   function setState(patch, persistAfter) {
@@ -90,48 +93,137 @@
     render();
   }
 
-  // ── login ──
-  function pinPress(d) {
-    if (state.pinDraft.length >= 4) return;
-    setState({ pinDraft: state.pinDraft + d, loginError: "" });
+  // ── auth ──
+  // The whole UI follows the Supabase session: onChange fires on first load,
+  // after an OAuth redirect, and on sign in / out. We load (or seed) the user's
+  // profile when a session appears and drop back to the login screen when it goes.
+  var sessionUserId = null;
+  function boot() {
+    if (!window.ForgeLiftAuth || !window.ForgeLiftAuth.ready) {
+      setState({ screen: "login", loginError: "AUTH UNAVAILABLE — CHECK CONNECTION" });
+      return;
+    }
+    window.ForgeLiftAuth.onChange(handleSession);
   }
-  function pinDel() { setState({ pinDraft: state.pinDraft.slice(0, -1) }); }
-  function doLogin() {
-    if (state.busy) return;
-    var u = state.usernameDraft.trim();
-    var p = state.pinDraft;
-    if (!u) { setState({ loginError: "ENTER A USERNAME" }); return; }
-    if (p.length < 4) { setState({ loginError: "PIN MUST BE 4 DIGITS" }); return; }
-    setState({ busy: true, loginError: "" });
-    window.ForgeLiftDB.login(u, p).then(function (res) {
-      if (res && res.status === "ok") { finishLogin(u, p, res.data); return; }
-      if (res && res.status === "bad_pin") { setState({ busy: false, pinDraft: "", loginError: "WRONG PIN" }); return; }
-      if (res && res.status === "new") {
-        // First time we've seen this name — seed the catalog and create the account.
-        var data = seed();
-        var payload = { machines: data.machines, logs: data.logs, unit: state.unit, theme: state.theme };
-        return window.ForgeLiftDB.signup(u, u, p, payload).then(function (sres) {
-          if (sres && sres.status === "ok") { finishLogin(u, p, payload); }
-          else if (sres && sres.status === "exists") { setState({ busy: false, pinDraft: "", loginError: "TRY AGAIN" }); }
-          else { setState({ busy: false, pinDraft: "", loginError: "COULD NOT CREATE ACCOUNT" }); }
+  function handleSession(session) {
+    var u = session && session.user;
+    if (u) {
+      if (u.id === sessionUserId) return; // ignore token refreshes for the same user
+      sessionUserId = u.id;
+      var meta = u.user_metadata || {};
+      var name = meta.full_name || meta.name ||
+        (u.email ? u.email.split("@")[0] : "athlete");
+      state.user = { id: u.id, name: name, email: u.email || "" };
+      // Defer Supabase calls out of the auth callback (avoids client deadlocks).
+      setTimeout(loadProfileThenHome, 0);
+    } else {
+      sessionUserId = null;
+      setState({
+        screen: "login", user: null, machines: [], logs: {}, activeId: null,
+        draft: [], search: "", busy: false, authMode: "signin",
+        passwordDraft: "", loginError: "", loginNotice: "",
+        settingsMsg: "", settingsMsgOk: false,
+      });
+    }
+  }
+  function loadProfileThenHome() {
+    window.ForgeLiftAuth.loadProfile().then(function (row) {
+      if (row) {
+        setState({
+          machines: row.machines || [], logs: row.logs || {},
+          unit: row.unit || state.unit, theme: row.theme || state.theme,
+          screen: "home", busy: false, emailDraft: "", passwordDraft: "",
+          loginError: "", loginNotice: "",
         });
+      } else {
+        // First sign-in for this user — seed the catalog and create the row.
+        var data = seed();
+        setState({
+          machines: data.machines, logs: data.logs, screen: "home", busy: false,
+          emailDraft: "", passwordDraft: "", loginError: "", loginNotice: "",
+        }, true);
       }
-      setState({ busy: false, pinDraft: "", loginError: "LOGIN FAILED" });
     }).catch(function (e) {
-      console.error("ForgeLift: login failed —", e && e.message);
-      setState({ busy: false, pinDraft: "", loginError: "CONNECTION ERROR" });
+      console.error("ForgeLift: profile load failed —", e && e.message);
+      setState({ screen: "login", busy: false, loginError: "COULD NOT LOAD YOUR DATA" });
     });
   }
-  function finishLogin(u, p, data) {
-    data = data || {};
-    setState({
-      user: u, pin: p, machines: data.machines || [], logs: data.logs || {},
-      unit: data.unit || state.unit, theme: data.theme || state.theme,
-      screen: "home", loginError: "", busy: false, pinDraft: "", usernameDraft: "",
+
+  function authOAuth(provider) {
+    if (state.busy) return;
+    setState({ busy: true, loginError: "", loginNotice: "" });
+    var call = provider === "apple"
+      ? window.ForgeLiftAuth.signInApple()
+      : window.ForgeLiftAuth.signInGoogle();
+    // On success the browser redirects away; we only land here on an error.
+    call.then(function (res) {
+      if (res && res.error) {
+        setState({ busy: false, loginError: oauthError(provider, res.error) });
+      }
+    }).catch(function (e) {
+      console.error("ForgeLift: oauth failed —", e && e.message);
+      setState({ busy: false, loginError: "CONNECTION ERROR" });
     });
   }
+  function oauthError(provider, err) {
+    var m = (err && err.message ? err.message : "").toLowerCase();
+    var name = provider === "apple" ? "APPLE" : "GOOGLE";
+    if (m.indexOf("not enabled") >= 0 || m.indexOf("unsupported") >= 0 || m.indexOf("provider") >= 0) {
+      return name + " SIGN-IN NOT ENABLED YET";
+    }
+    return (err && err.message ? err.message.toUpperCase() : name + " SIGN-IN FAILED");
+  }
+
+  function submitEmail() {
+    if (state.busy) return;
+    var email = state.emailDraft.trim();
+    var pw = state.passwordDraft;
+    var signup = state.authMode === "signup";
+    if (!email || email.indexOf("@") < 0) { setState({ loginError: "ENTER A VALID EMAIL" }); return; }
+    if (pw.length < 6) { setState({ loginError: "PASSWORD NEEDS 6+ CHARACTERS" }); return; }
+    setState({ busy: true, loginError: "", loginNotice: "" });
+    var call = signup
+      ? window.ForgeLiftAuth.signUpEmail(email, pw)
+      : window.ForgeLiftAuth.signInEmail(email, pw);
+    call.then(function (res) {
+      if (res && res.error) { setState({ busy: false, loginError: authError(res.error) }); return; }
+      // Sign-up with email confirmation on → no session yet; tell the user.
+      if (signup && res && res.data && !res.data.session) {
+        setState({ busy: false, loginError: "", loginNotice: "CHECK YOUR EMAIL TO CONFIRM, THEN SIGN IN", authMode: "signin", passwordDraft: "" });
+        return;
+      }
+      // Otherwise the session arrives via onChange, which navigates home.
+    }).catch(function (e) {
+      console.error("ForgeLift: email auth failed —", e && e.message);
+      setState({ busy: false, loginError: "CONNECTION ERROR" });
+    });
+  }
+  function authError(err) {
+    var m = (err && err.message ? err.message : "").toLowerCase();
+    if (m.indexOf("invalid login") >= 0) return "WRONG EMAIL OR PASSWORD";
+    if (m.indexOf("already registered") >= 0 || m.indexOf("already exists") >= 0) return "EMAIL ALREADY REGISTERED — SIGN IN";
+    if (m.indexOf("not confirmed") >= 0) return "CONFIRM YOUR EMAIL FIRST";
+    if (m.indexOf("password") >= 0) return "PASSWORD NEEDS 6+ CHARACTERS";
+    return (err && err.message ? err.message.toUpperCase() : "SOMETHING WENT WRONG");
+  }
+  function toggleAuthMode() {
+    setState({ authMode: state.authMode === "signin" ? "signup" : "signin", loginError: "", loginNotice: "" });
+  }
+
   function logout() {
-    setState({ screen: "login", user: null, pin: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: "", usernameDraft: "", search: "", busy: false, settingsMsg: "", settingsMsgOk: false });
+    // Reset the UI immediately; onChange will also fire from signOut().
+    setState({
+      screen: "login", user: null, machines: [], logs: {}, activeId: null,
+      draft: [], search: "", busy: false, authMode: "signin",
+      passwordDraft: "", emailDraft: "", loginError: "", loginNotice: "",
+      settingsMsg: "", settingsMsgOk: false,
+    });
+    sessionUserId = null;
+    if (window.ForgeLiftAuth) {
+      window.ForgeLiftAuth.signOut().catch(function (e) {
+        console.error("ForgeLift: sign out failed —", e && e.message);
+      });
+    }
   }
 
   // ── nav ──
@@ -280,12 +372,13 @@
   function exportBackup() {
     var json, filename;
     try {
+      var who = state.user ? (state.user.email || state.user.name) : "backup";
       var payload = {
-        app: "ForgeLift", version: 1, user: state.user, exportedAt: new Date().toISOString(),
+        app: "ForgeLift", version: 1, user: who, exportedAt: new Date().toISOString(),
         data: { machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme },
       };
       json = JSON.stringify(payload, null, 2);
-      var slug = (state.user || "backup").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
+      var slug = who.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
       filename = "forgelift-" + slug + "-" + new Date().toISOString().slice(0, 10) + ".json";
     } catch (e) {
       setState({ settingsMsg: "EXPORT FAILED", settingsMsgOk: false });
@@ -334,7 +427,7 @@
       if (!d || !Array.isArray(d.machines)) {
         setState({ settingsMsg: "NOT A FORGELIFT BACKUP", settingsMsgOk: false }); return;
       }
-      if (!window.confirm("Restore this backup? It replaces the current machines and history for \"" + (state.user || "this account") + "\".")) {
+      if (!window.confirm("Restore this backup? It replaces the current machines and history for \"" + ((state.user && state.user.name) || "this account") + "\".")) {
         setState({ settingsMsg: "RESTORE CANCELLED", settingsMsgOk: false }); return;
       }
       var machines = sanitizeMachines(d.machines);
@@ -348,12 +441,11 @@
   }
 
   function deleteAccount() {
-    var u = state.user, p = state.pin;
+    var u = state.user;
     if (!u) return;
-    if (!window.confirm("Delete account \"" + u + "\"? This erases all its machines and history and cannot be undone.")) return;
-    window.ForgeLiftDB.remove(u, p).then(function (res) {
-      if (res && res.status === "ok") { logout(); }
-      else { setState({ settingsMsg: "DELETE FAILED", settingsMsgOk: false }); }
+    if (!window.confirm("Erase all workout data for \"" + u.email + "\"? This wipes your machines and history and cannot be undone. You'll be signed out.")) return;
+    window.ForgeLiftAuth.deleteProfile(u.id).then(function () {
+      logout();
     }).catch(function (e) {
       console.error("ForgeLift: delete failed —", e && e.message);
       setState({ settingsMsg: "DELETE FAILED — CONNECTION ERROR", settingsMsgOk: false });
@@ -454,7 +546,8 @@
     var ul = state.unit;
 
     var html = "";
-    if (state.screen === "login") html = viewLogin(isDark, iconAccent);
+    if (state.screen === "loading") html = viewLoading(isDark, iconAccent);
+    else if (state.screen === "login") html = viewLogin(isDark, iconAccent);
     else if (state.screen === "home") html = viewHome(ul, iconStroke, iconAccent);
     else if (state.screen === "machine") html = viewMachine(ul);
     else if (state.screen === "add") html = viewAdd();
@@ -477,42 +570,75 @@
     }
   }
 
-  // ── LOGIN ──
+  // ── LOADING (checking the session) ──
+  function viewLoading(isDark, iconAccent) {
+    var mark = brandMark(isDark ? "#f3f3f1" : "#111111", iconAccent);
+    return '<div class="screen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:22px 22px;">' +
+        '<img src="' + mark + '" alt="ForgeLift" style="width:56px;height:56px;display:block;opacity:0.9;" />' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 1.2s infinite;"></span>' +
+          '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Loading</span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── LOGIN (Supabase Auth: Apple / Google / email + password) ──
   function viewLogin(isDark, iconAccent) {
     var mark = brandMark(isDark ? "#f3f3f1" : "#111111", iconAccent);
-    var dots = [0, 1, 2, 3].map(function (i) {
-      var filled = i < state.pinDraft.length;
-      return filled
-        ? '<span style="width:12px;height:12px;border-radius:50%;background:var(--accent);"></span>'
-        : '<span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--border);"></span>';
-    }).join("");
-    var keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"].map(function (d) {
-      return '<button data-action="pin" data-d="' + d + '" class="hov-accent" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;">' + d + "</button>";
-    }).join("");
+    var signup = state.authMode === "signup";
+    var submitLabel = state.busy ? "···" : (signup ? "Create account →" : "Sign in →");
+
+    // Provider marks: Apple monochrome (follows theme), Google in brand colours.
+    var glyph = isDark ? "#ffffff" : "#0a0a0a";
+    var appleMark = '<svg width="15" height="18" viewBox="0 0 384 512" fill="' + glyph + '" style="flex-shrink:0;"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>';
+    var googleMark = '<svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0;"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>';
+    var providerBtn = function (action, mark, label) {
+      return '<button data-action="' + action + '" class="hov-border-accent" ' +
+        (state.busy ? "disabled " : "") +
+        'style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;letter-spacing:0.04em;padding:13px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';margin-bottom:10px;">' + mark + '<span>' + label + '</span></button>';
+    };
+
+    var divider =
+      '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;">' +
+        '<div style="flex:1;height:1px;background:var(--border);"></div>' +
+        '<span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">or</span>' +
+        '<div style="flex:1;height:1px;background:var(--border);"></div>' +
+      '</div>';
+
+    var feedback = state.loginError
+      ? '<div style="min-height:16px;margin-top:12px;font-size:11px;letter-spacing:0.06em;color:var(--accent);text-align:center;">' + esc(state.loginError) + '</div>'
+      : (state.loginNotice
+        ? '<div style="min-height:16px;margin-top:12px;font-size:11px;letter-spacing:0.06em;color:var(--muted);text-align:center;">' + esc(state.loginNotice) + '</div>'
+        : '<div style="min-height:16px;margin-top:12px;"></div>');
+
+    var inputStyle = "width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;letter-spacing:0.02em;margin-bottom:10px;";
 
     return '<div class="screen" style="display:flex;flex-direction:column;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:22px 22px;">' +
-      '<div style="flex:1;overflow:auto;display:flex;flex-direction:column;justify-content:center;padding:54px 30px 40px;">' +
-        '<img src="' + mark + '" alt="ForgeLift" style="width:58px;height:58px;display:block;margin-bottom:24px;" />' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">' +
+      '<div style="flex:1;overflow:auto;display:flex;flex-direction:column;justify-content:center;padding:48px 30px 40px;">' +
+        '<img src="' + mark + '" alt="ForgeLift" style="width:54px;height:54px;display:block;margin-bottom:20px;" />' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
           '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 2.4s infinite;"></span>' +
           '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Gym Tracker</span>' +
         '</div>' +
-        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:34px;">FORGE<br>LIFT</div>' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Username</div>' +
-        '<input id="input-username" value="' + esc(state.usernameDraft) + '" placeholder="enter name" autocomplete="off" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;letter-spacing:0.02em;margin-bottom:22px;" />' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
-          '<span style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);">PIN</span>' +
-          '<div style="display:flex;gap:10px;">' + dots + '</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:50px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:26px;">FORGE<br>LIFT</div>' +
+
+        providerBtn("auth-apple", appleMark, "Continue with Apple") +
+        providerBtn("auth-google", googleMark, "Continue with Google") +
+
+        divider +
+
+        '<input id="input-email" type="email" value="' + esc(state.emailDraft) + '" placeholder="email" autocomplete="email" inputmode="email" style="' + inputStyle + '" />' +
+        '<input id="input-password" type="password" value="' + esc(state.passwordDraft) + '" placeholder="password" autocomplete="' + (signup ? "new-password" : "current-password") + '" style="' + inputStyle + 'margin-bottom:0;" />' +
+
+        feedback +
+
+        '<button data-action="auth-email" class="hov-bright" ' + (state.busy ? "disabled " : "") + 'style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.18em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';">' + submitLabel + '</button>' +
+
+        '<div style="text-align:center;margin-top:16px;font-size:11px;letter-spacing:0.04em;color:var(--muted);">' +
+          (signup ? "Already have an account? " : "New here? ") +
+          '<a data-action="auth-toggle" style="color:var(--text);cursor:pointer;text-decoration:underline;text-underline-offset:3px;">' +
+          (signup ? "Sign in" : "Create one") + '</a>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;">' +
-          keys +
-          '<div></div>' +
-          '<button data-action="pin" data-d="0" class="hov-accent" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;">0</button>' +
-          '<button data-action="pin-del" class="hov-text" style="height:58px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:13px;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">DEL</button>' +
-        '</div>' +
-        '<div style="height:18px;margin-top:14px;font-size:11px;letter-spacing:0.08em;color:var(--accent);text-align:center;">' + esc(state.loginError) + '</div>' +
-        '<button data-action="do-login" class="hov-bright" style="width:100%;margin-top:6px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.22em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;">' + (state.busy ? "···" : "Enter →") + '</button>' +
-        '<div style="text-align:center;margin-top:14px;font-size:10px;letter-spacing:0.1em;color:var(--muted);">New name + 4-digit PIN creates an account</div>' +
       '</div></div>';
   }
 
@@ -575,7 +701,7 @@
       listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div>';
     }
 
-    var greeting = "Hello, " + (state.user || "").toUpperCase();
+    var greeting = "Hello, " + ((state.user && state.user.name) || "").toUpperCase();
 
     return '<div class="screen" style="display:flex;flex-direction:column;">' +
       '<div style="padding:54px 22px 12px;flex-shrink:0;">' +
@@ -802,7 +928,9 @@
         : "background:transparent;color:var(--muted);border:1px solid var(--border);";
       return '<button data-action="' + action + '" style="flex:1;' + st + 'font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">' + label + '</button>';
     };
-    var initial = (state.user || "?").charAt(0).toUpperCase();
+    var uname = (state.user && state.user.name) || "?";
+    var uemail = (state.user && state.user.email) || "";
+    var initial = uname.charAt(0).toUpperCase();
 
     var msg = state.settingsMsg
       ? '<div style="margin-top:12px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:' + (state.settingsMsgOk ? "var(--muted)" : "var(--accent)") + ';">' + esc(state.settingsMsg) + '</div>'
@@ -830,7 +958,7 @@
         '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Account</div>' +
         '<div style="display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:15px;margin-bottom:14px;">' +
           '<div style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:\'Doto\',monospace;font-weight:900;font-size:20px;color:#fff;">' + esc(initial) + '</div>' +
-          '<div><div style="font-size:15px;color:var(--text);">' + esc(state.user) + '</div><div style="font-size:10px;letter-spacing:0.14em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Signed in</div></div>' +
+          '<div style="min-width:0;"><div style="font-size:15px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(uname) + '</div><div style="font-size:10px;letter-spacing:0.06em;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(uemail) + '</div></div>' +
         '</div>' +
         '<button data-action="logout" class="hov-border-accent" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--accent);font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Log Out</button>' +
         '<button data-action="delete-account" class="hov-bright" style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Delete Account</button>' +
@@ -840,9 +968,10 @@
 
   // ════════════════════════ EVENTS ════════════════════════
   var ACTIONS = {
-    "pin": function (el) { pinPress(el.getAttribute("data-d")); },
-    "pin-del": pinDel,
-    "do-login": doLogin,
+    "auth-apple": function () { authOAuth("apple"); },
+    "auth-google": function () { authOAuth("google"); },
+    "auth-email": submitEmail,
+    "auth-toggle": toggleAuthMode,
     "open-settings": openSettings,
     "open-add": openAdd,
     "go-home": goHome,
@@ -883,7 +1012,8 @@
 
   app.addEventListener("input", function (e) {
     var id = e.target.id;
-    if (id === "input-username") { state.usernameDraft = e.target.value; state.loginError = ""; render(); }
+    if (id === "input-email") { state.emailDraft = e.target.value; state.loginError = ""; render(); }
+    else if (id === "input-password") { state.passwordDraft = e.target.value; state.loginError = ""; render(); }
     else if (id === "input-search") { state.search = e.target.value; render(); }
     else if (id === "input-addname") { state.addName = e.target.value; render(); }
   });
@@ -897,10 +1027,14 @@
     }
   });
 
-  // Submit username field with Enter
+  // Submit the email/password form with Enter from either field.
   app.addEventListener("keydown", function (e) {
-    if (e.key === "Enter" && e.target.id === "input-username") { e.preventDefault(); doLogin(); }
+    if (e.key === "Enter" && (e.target.id === "input-email" || e.target.id === "input-password")) {
+      e.preventDefault();
+      submitEmail();
+    }
   });
 
   render();
+  boot();
 })();
