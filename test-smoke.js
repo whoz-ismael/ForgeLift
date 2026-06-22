@@ -104,7 +104,7 @@ click('[data-action="go-home"]'); // back from the Chest Press detail
 const tid = idByName("Treadmill");
 check("treadmill present in expanded catalog", !!tid);
 click('[data-action="open-machine"][data-id="' + tid + '"]');
-check("cardio shows Longest Time, not Personal Best", /Longest Time/.test($("#app").textContent) && !/Personal Best/.test($("#app").textContent));
+check("cardio hero strip (Longest / Best Pace), not Personal Best", /Longest/.test($("#app").textContent) && /Best Pace/.test($("#app").textContent) && !/Personal Best/.test($("#app").textContent));
 check("cardio chart titled by duration", /Duration · Over Time/.test($("#app").textContent));
 click('[data-action="add-set"]');
 check("cardio adds an Interval (not a Set)", /INTERVAL 01/.test($("#app").textContent) && !/SET 01/.test($("#app").textContent));
@@ -112,6 +112,7 @@ check("cardio logs duration/distance, not reps/weight", /Duration/.test($("#app"
 click('[data-action="dur-up"]');
 click('[data-action="dist-up"]');
 click('[data-action="cal-up"]');
+check("cardio shows live pace + speed readout", /km\/h/.test($("#app").textContent));
 click('[data-action="save-session"]');
 check("cardio session saved (draft cleared)", !/INTERVAL 01/.test($("#app").textContent));
 check("cardio chart rendered after first session", !!$("polyline"));

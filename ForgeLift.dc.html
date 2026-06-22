@@ -133,13 +133,26 @@
           <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">{{ amGroup }}</div>
           <div style="font-family:'Doto',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:20px;">{{ amName }}</div>
 
-          <!-- PR stat -->
+          <!-- HERO · strength: single personal best -->
+          <sc-if value="{{ heroStrength }}">
           <div style="display:flex;align-items:flex-end;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--border);">
             <div>
               <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">{{ pbLabel }}</div>
               <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:'Doto',monospace;font-weight:900;font-size:54px;line-height:0.8;color:var(--accent);">{{ pr }}</span><span style="font-family:'Space Mono',monospace;font-size:14px;color:var(--muted);">{{ pbUnit }}</span></div>
             </div>
           </div>
+          </sc-if>
+          <!-- HERO · cardio: three-metric strip (time / distance / pace) -->
+          <sc-if value="{{ heroCardio }}">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+            <sc-for list="{{ cardioStats }}" as="st" hint-placeholder-count="3">
+              <div style="background:var(--bg);padding:14px 13px;">
+                <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;white-space:nowrap;">{{ st.label }}</div>
+                <div style="display:flex;align-items:baseline;gap:3px;"><span style="font-family:'Doto',monospace;font-weight:900;font-size:32px;line-height:0.8;color:var(--accent);">{{ st.val }}</span><span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">{{ st.unit }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+          </sc-if>
 
           <!-- CHART -->
           <div style="margin-top:22px;">
@@ -221,6 +234,15 @@
                   <button onClick="{{ s.onCalUp }}" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">+</button>
                 </div>
               </div>
+              <!-- live pace / speed readout -->
+              <sc-if value="{{ s.paceShow }}">
+              <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;">
+                <span style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">Pace</span>
+                <span style="font-family:'Doto',monospace;font-weight:700;font-size:17px;letter-spacing:0.04em;color:var(--accent);">{{ s.pace }}</span>
+                <span style="flex:1;"></span>
+                <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.06em;color:var(--muted);">{{ s.speed }}</span>
+              </div>
+              </sc-if>
               </sc-if>
             </div>
           </sc-for>
@@ -503,6 +525,7 @@ class Component extends DCLogic {
   dispDist(km) { return Math.round((this.state.unit === 'lb' ? km / this.MI : km) * 100) / 100; }
   sumField(session, f) { return session.sets.reduce((a, x) => a + (x[f] || 0), 0); }
   fmtDate(iso) { try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase(); } catch (e) { return iso; } }
+  fmtPace(minPerUnit) { if (!isFinite(minPerUnit) || minPerUnit <= 0) return '—'; let m = Math.floor(minPerUnit), s = Math.round((minPerUnit - m) * 60); if (s === 60) { m += 1; s = 0; } return m + ':' + String(s).padStart(2, '0'); }
 
   iconKey(name, group) {
     const n = (name || '').toLowerCase();
@@ -627,7 +650,7 @@ class Component extends DCLogic {
     const am = S.machines.find(m => m.id === S.activeId) || null;
     const cardio = this.isCardio(am);
     let pr = '—', chart = { has: false, empty: true }, history = [], hasHistory = false;
-    let amName = '', amGroup = '', amFav = false;
+    let amName = '', amGroup = '', amFav = false, cardioStats = [];
     if (am) {
       amName = am.name; amGroup = am.group; amFav = am.fav;
       const sess = (S.logs[am.id] || []).slice().sort((a, b) => a.date < b.date ? -1 : 1);
@@ -646,12 +669,31 @@ class Component extends DCLogic {
         const area = 'M' + coords[0].x + ',' + (H - pB) + coords.map(c => ' L' + c.x + ',' + c.y).join('') + ' L' + coords[coords.length - 1].x + ',' + (H - pB) + ' Z';
         chart = { has: true, empty: false, line, area, dots: coords, topLabel: cardio ? (mx + ' min') : (dispW(mx) + ' ' + ul), xFirst: this.fmtDate(sr[0].date), xLast: this.fmtDate(sr[sr.length - 1].date) };
       }
+      if (cardio) {
+        if (sess.length) {
+          const durs = sess.map(s => this.sumField(s, 'duration'));
+          const farthestKm = Math.max.apply(null, sess.map(s => this.sumField(s, 'distance')));
+          cardioStats = [{ label: 'Longest', val: String(Math.max.apply(null, durs)), unit: 'min' }];
+          if (farthestKm > 0) {
+            let bestPace = null;
+            sess.forEach(s => { const d = this.sumField(s, 'duration'), km = this.sumField(s, 'distance'); if (km > 0) { const p = d / this.dispDist(km); if (bestPace === null || p < bestPace) bestPace = p; } });
+            cardioStats.push({ label: 'Farthest', val: String(this.dispDist(farthestKm)), unit: this.distUnit() });
+            cardioStats.push({ label: 'Best Pace', val: this.fmtPace(bestPace), unit: '/' + this.distUnit() });
+          } else {
+            cardioStats.push({ label: 'Sessions', val: String(sess.length), unit: '' });
+            cardioStats.push({ label: 'Calories', val: String(sess.reduce((a, s) => a + this.sumField(s, 'calories'), 0)), unit: 'kcal' });
+          }
+        } else {
+          cardioStats = [{ label: 'Longest', val: '—', unit: 'min' }, { label: 'Farthest', val: '—', unit: this.distUnit() }, { label: 'Best Pace', val: '—', unit: '/' + this.distUnit() }];
+        }
+      }
       const hist = (S.logs[am.id] || []).slice().sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 8);
       history = hist.map(s => {
         if (cardio) {
           const dur = this.sumField(s, 'duration'), dist = this.sumField(s, 'distance'), cal = this.sumField(s, 'calories');
           const parts = [s.sets.length + (s.sets.length === 1 ? ' INTERVAL' : ' INTERVALS')];
           if (dist > 0) parts.push(this.dispDist(dist) + ' ' + this.distUnit());
+          if (dist > 0 && dur > 0) parts.push(this.fmtPace(dur / this.dispDist(dist)) + ' /' + this.distUnit());
           if (cal > 0) parts.push(cal + ' KCAL');
           return { date: this.fmtDate(s.date), big: String(dur), bigUnit: 'min', summary: parts.join(' · ') };
         }
@@ -669,6 +711,9 @@ class Component extends DCLogic {
     const draftRows = S.draft.map((st, i) => cardio ? {
       entryLabel: 'INTERVAL ' + String(i + 1).padStart(2, '0'), cardio: true, strength: false,
       duration: (st.duration || 0), distance: this.dispDist(st.distance || 0), calories: (st.calories || 0),
+      paceShow: (st.distance || 0) > 0 && (st.duration || 0) > 0,
+      pace: this.fmtPace((st.duration || 0) / (this.dispDist(st.distance || 0) || 1)) + ' /' + this.distUnit(),
+      speed: (this.dispDist(st.distance || 0) > 0 ? (Math.round((this.dispDist(st.distance || 0) / ((st.duration || 0) / 60)) * 10) / 10) : 0) + ' ' + this.distUnit() + '/h',
       onDurUp: () => this.durationDelta(i, 1), onDurDn: () => this.durationDelta(i, -1),
       onDistUp: () => this.distanceDelta(i, 1), onDistDn: () => this.distanceDelta(i, -1),
       onCalUp: () => this.caloriesDelta(i, 1), onCalDn: () => this.caloriesDelta(i, -1),
@@ -697,6 +742,7 @@ class Component extends DCLogic {
       // machine
       goHome: this.goHome, amName, amGroup, amFav, amNotFav: !amFav, onToggleAmFav: () => am && this.toggleFav(am.id),
       pr, ul, chart, history, hasHistory, draftRows,
+      heroStrength: !cardio, heroCardio: cardio, cardioStats,
       pbLabel, pbUnit, chartTitle, chartEmptyText, setsTitle, addSetLabel, cantSaveText, distUnit: this.distUnit(),
       onAddSet: this.addSet, onDup: this.duplicateLast, onSave: this.saveSession,
       canSave: S.draft.length > 0, cantSave: S.draft.length === 0,
