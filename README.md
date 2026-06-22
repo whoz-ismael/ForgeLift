@@ -2,7 +2,7 @@
 
 A gym workout tracker — log the weight and reps of every set on each strength machine (or time, distance and calories on cardio machines), mark favorites, and watch your numbers climb over time. **Nothing-style** UI: dot-matrix type, monochrome black/white, single red accent, dark + light mode.
 
-The original Claude Design prototype has been brought to life as a **real, runnable web app** built with plain **HTML, CSS and vanilla JS** — no build step, no framework. Data lives in the browser (`localStorage`).
+The original Claude Design prototype has been brought to life as a **real, runnable web app** built with plain **HTML, CSS and vanilla JS** — no build step, no framework. Accounts and workout history live in a **Supabase** (Postgres) database, so your data follows you across devices and browsers.
 
 ## Run it
 
@@ -14,7 +14,9 @@ Or serve it locally (so `file://` quirks never bite):
 npm start          # → npx serve .  (any static server works)
 ```
 
-Log in with **any username + any 4-digit PIN**. A new name seeds a demo account pre-loaded with machines and progress history; an existing name restores that user's saved data.
+Log in with a **username + a 4-digit PIN**. A new name creates an account — seeded with the machine catalog — and sets its PIN; logging in again with that name requires the same PIN and restores the account's saved data from Supabase.
+
+> **No setup needed to run it.** The app ships with the project's public Supabase URL + anon key baked into `js/supabase.js`, so opening `index.html` just works. To point it at your own Supabase project, edit those two constants and apply `supabase/migrations/0001_accounts.sql`.
 
 ## The app
 
@@ -22,9 +24,11 @@ Log in with **any username + any 4-digit PIN**. A new name seeds a demo account 
 |------|------------|
 | `index.html` | App entry point. |
 | `css/styles.css` | Design tokens, light/dark themes, responsive phone-on-desktop frame. |
-| `js/app.js` | All app logic — state, screens, rendering, charts, icons, localStorage. |
+| `js/app.js` | All app logic — state, screens, rendering, charts, icons. |
+| `js/supabase.js` | Supabase client + the `ForgeLiftDB` data layer (login / signup / save / delete). |
+| `supabase/migrations/` | SQL schema — the `accounts` table and PIN-verified RPCs. |
 | `assets/` | Brand assets — `forgelift-icon-dark.png`, `-light.png` (1024px), `forgelift-icon.svg`, `forgelift-mark.svg`. |
-| `test-smoke.js` | Headless jsdom smoke test covering the main flows (`npm test`). |
+| `test-smoke.js` | Headless jsdom smoke test covering the main flows against an in-memory mock of the data layer (`npm test`). |
 
 ## Features
 
@@ -72,13 +76,17 @@ The source design files are kept for reference:
 | `ForgeLift Logo.html` | Brand sheet (app icon, wordmark, sizes). |
 | `ios-frame.jsx`, `support.js` | Runtime + iPhone frame used by the source component. |
 
+## Data & storage
+
+Each account is a single row in the Supabase `accounts` table (`machines`, `logs`, `unit`, `theme` as JSON). The browser never touches the table directly — it calls four PIN-verified Postgres functions (`fl_login`, `fl_signup`, `fl_save`, `fl_delete`) defined in `supabase/migrations/0001_accounts.sql`. The table has Row Level Security enabled with **no policies**, so the public anon key can't read or write it except through those functions, and PINs are stored only as bcrypt hashes (`pgcrypto`) server-side.
+
+This is a lightweight gate, not bank-grade auth: the functions are intentionally callable with the anon key (that's how a build-step-free, key-in-the-browser app reaches the DB), so a 4-digit PIN is the only barrier per username. Fine for a personal tracker — see *next steps* to harden it.
+
 ## Notes / next steps
 
-This is a front-end app — auth, data and photos all live in `localStorage`, there is no backend. To take it further:
-
-- Real authentication + hashed PINs (replace the visual PIN gate).
-- A database keyed per user (replace `localStorage`).
-- Cloud storage for machine photos.
+- Move to full **Supabase Auth** (email / OAuth) and per-user RLS policies instead of the PIN gate + service functions.
+- Rate-limit login attempts to blunt PIN brute-forcing.
+- Cloud storage (Supabase Storage) for machine photos — they're currently inlined as data URLs in the row.
 - Optional: package as an installable PWA.
 
 ## Design tokens

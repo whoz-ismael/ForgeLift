@@ -1,6 +1,7 @@
 /* ForgeLift — vanilla JS gym tracker.
  * Ported faithfully from the Claude Design prototype (ForgeLift.dc.html).
- * State lives in memory; per-user data is persisted to localStorage. */
+ * State lives in memory; per-user data is persisted to Supabase Postgres
+ * through window.ForgeLiftDB (js/supabase.js). */
 (function () {
   "use strict";
 
@@ -9,8 +10,8 @@
   var GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Cardio"];
 
   var state = {
-    screen: "login", theme: "dark", unit: "kg", user: null,
-    usernameDraft: "", pinDraft: "", loginError: "",
+    screen: "login", theme: "dark", unit: "kg", user: null, pin: null,
+    usernameDraft: "", pinDraft: "", loginError: "", busy: false,
     machines: [], logs: {}, activeId: null, draft: [], search: "",
     addName: "", addGroup: "Chest", addPhoto: null,
     settingsMsg: "", settingsMsgOk: false,
@@ -70,14 +71,18 @@
   }
 
   // ── persistence ──
+  // Pushes the current account snapshot to Supabase. Saves are chained so that
+  // rapid edits land in order (last-write-wins on the row).
+  var saveChain = Promise.resolve();
   function persist() {
-    var u = state.user;
-    if (!u) return;
-    try {
-      localStorage.setItem("replog:" + u.toLowerCase(), JSON.stringify({
-        machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme,
-      }));
-    } catch (e) {}
+    var u = state.user, p = state.pin;
+    if (!u || !p) return;
+    var snapshot = {
+      machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme,
+    };
+    saveChain = saveChain
+      .then(function () { return window.ForgeLiftDB.save(u, p, snapshot); })
+      .catch(function (e) { console.error("ForgeLift: save failed —", e && e.message); });
   }
   function setState(patch, persistAfter) {
     Object.assign(state, patch);
@@ -92,21 +97,41 @@
   }
   function pinDel() { setState({ pinDraft: state.pinDraft.slice(0, -1) }); }
   function doLogin() {
+    if (state.busy) return;
     var u = state.usernameDraft.trim();
     var p = state.pinDraft;
     if (!u) { setState({ loginError: "ENTER A USERNAME" }); return; }
     if (p.length < 4) { setState({ loginError: "PIN MUST BE 4 DIGITS" }); return; }
-    var data = null;
-    try { var raw = localStorage.getItem("replog:" + u.toLowerCase()); if (raw) data = JSON.parse(raw); } catch (e) {}
-    if (!data) data = seed();
+    setState({ busy: true, loginError: "" });
+    window.ForgeLiftDB.login(u, p).then(function (res) {
+      if (res && res.status === "ok") { finishLogin(u, p, res.data); return; }
+      if (res && res.status === "bad_pin") { setState({ busy: false, pinDraft: "", loginError: "WRONG PIN" }); return; }
+      if (res && res.status === "new") {
+        // First time we've seen this name — seed the catalog and create the account.
+        var data = seed();
+        var payload = { machines: data.machines, logs: data.logs, unit: state.unit, theme: state.theme };
+        return window.ForgeLiftDB.signup(u, u, p, payload).then(function (sres) {
+          if (sres && sres.status === "ok") { finishLogin(u, p, payload); }
+          else if (sres && sres.status === "exists") { setState({ busy: false, pinDraft: "", loginError: "TRY AGAIN" }); }
+          else { setState({ busy: false, pinDraft: "", loginError: "COULD NOT CREATE ACCOUNT" }); }
+        });
+      }
+      setState({ busy: false, pinDraft: "", loginError: "LOGIN FAILED" });
+    }).catch(function (e) {
+      console.error("ForgeLift: login failed —", e && e.message);
+      setState({ busy: false, pinDraft: "", loginError: "CONNECTION ERROR" });
+    });
+  }
+  function finishLogin(u, p, data) {
+    data = data || {};
     setState({
-      user: u, machines: data.machines, logs: data.logs,
+      user: u, pin: p, machines: data.machines || [], logs: data.logs || {},
       unit: data.unit || state.unit, theme: data.theme || state.theme,
-      screen: "home", loginError: "", pinDraft: "", usernameDraft: "",
+      screen: "home", loginError: "", busy: false, pinDraft: "", usernameDraft: "",
     });
   }
   function logout() {
-    setState({ screen: "login", user: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: "", usernameDraft: "", search: "", settingsMsg: "", settingsMsgOk: false });
+    setState({ screen: "login", user: null, pin: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: "", usernameDraft: "", search: "", busy: false, settingsMsg: "", settingsMsgOk: false });
   }
 
   // ── nav ──
@@ -323,11 +348,16 @@
   }
 
   function deleteAccount() {
-    var u = state.user;
+    var u = state.user, p = state.pin;
     if (!u) return;
-    if (!window.confirm("Delete account \"" + u + "\"? This erases all its machines and history on this device and cannot be undone.")) return;
-    try { localStorage.removeItem("replog:" + u.toLowerCase()); } catch (e) {}
-    logout();
+    if (!window.confirm("Delete account \"" + u + "\"? This erases all its machines and history and cannot be undone.")) return;
+    window.ForgeLiftDB.remove(u, p).then(function (res) {
+      if (res && res.status === "ok") { logout(); }
+      else { setState({ settingsMsg: "DELETE FAILED", settingsMsgOk: false }); }
+    }).catch(function (e) {
+      console.error("ForgeLift: delete failed —", e && e.message);
+      setState({ settingsMsg: "DELETE FAILED — CONNECTION ERROR", settingsMsgOk: false });
+    });
   }
 
   // ── formatting ──
@@ -481,8 +511,8 @@
           '<button data-action="pin-del" class="hov-text" style="height:58px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:13px;letter-spacing:0.1em;border-radius:4px;cursor:pointer;">DEL</button>' +
         '</div>' +
         '<div style="height:18px;margin-top:14px;font-size:11px;letter-spacing:0.08em;color:var(--accent);text-align:center;">' + esc(state.loginError) + '</div>' +
-        '<button data-action="do-login" class="hov-bright" style="width:100%;margin-top:6px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.22em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;">Enter →</button>' +
-        '<div style="text-align:center;margin-top:14px;font-size:10px;letter-spacing:0.1em;color:var(--muted);">New name + any 4-digit PIN creates an account</div>' +
+        '<button data-action="do-login" class="hov-bright" style="width:100%;margin-top:6px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.22em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;">' + (state.busy ? "···" : "Enter →") + '</button>' +
+        '<div style="text-align:center;margin-top:14px;font-size:10px;letter-spacing:0.1em;color:var(--muted);">New name + 4-digit PIN creates an account</div>' +
       '</div></div>';
   }
 
