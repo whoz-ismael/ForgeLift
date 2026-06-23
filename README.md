@@ -12,13 +12,16 @@ The app is a static site (HTML/CSS/JS, no build step) deployed on **Cloudflare P
 
 > The app ships with the project's public Supabase URL + anon key in `js/supabase.js`. To use your own Supabase project, edit those two constants and apply the migrations in `supabase/migrations/`.
 
-### Email confirmation (optional)
+### Email confirmation
 
-Email/password auth works immediately. By default Supabase asks new users to confirm their address — they must click the link in the email before they can sign in. To skip this, turn **off** *Confirm email* in *Authentication → Providers → Email* in the Supabase dashboard. If it's left on, ForgeLift shows a "check your email to confirm" message after sign-up.
+**This project runs with email confirmation _disabled_**, so sign-up is instant — a new user goes straight into the app, no email round-trip. (Customizing confirmation emails in Supabase requires a custom SMTP provider on a verified domain, which this deployment doesn't use.) To turn it on later, enable *Confirm email* in *Authentication → Sign In / Providers → Email*; when it's on, ForgeLift shows a "check your email to confirm" message after sign-up.
 
-> Make sure the project's **Site URL** (*Authentication → URL Configuration*) points to the deployed Cloudflare domain, so the confirmation link sends users back to the live app.
+The app handles both modes automatically — no code change is needed either way.
 
-A branded HTML template for the confirmation email lives at `supabase/templates/confirm-signup.html` — paste it into *Authentication → Email Templates → Confirm sign up*.
+If you do enable confirmation later, you'll also want to:
+- set up a custom SMTP provider (e.g. Resend) on a domain you control — `*.pages.dev` can't be used as a sender domain;
+- point the project's **Site URL** (*Authentication → URL Configuration*) at the deployed Cloudflare domain so the confirmation link returns to the live app;
+- paste the branded template at `supabase/templates/confirm-signup.html` into *Authentication → Email Templates → Confirm sign up*.
 
 ### Passkeys (passwordless)
 
