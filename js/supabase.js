@@ -1,10 +1,9 @@
 /* ForgeLift — Supabase auth + data layer.
  *
- * Real authentication via Supabase Auth (Apple / Google OAuth, or email +
- * password). Each signed-in user owns one row in the `profiles` table; Row
- * Level Security ties every row to auth.uid(), so the user's JWT is what grants
- * access — the browser reads and writes only its own data. See
- * supabase/migrations/.
+ * Real authentication via Supabase Auth (email + password). Each signed-in
+ * user owns one row in the `profiles` table; Row Level Security ties every row
+ * to auth.uid(), so the user's JWT is what grants access — the browser reads
+ * and writes only its own data. See supabase/migrations/.
  *
  * Loads before js/app.js, which uses window.ForgeLiftAuth. */
 (function () {
@@ -26,19 +25,10 @@
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   });
 
-  // Where OAuth providers send the user back — the app's own URL, minus any
-  // hash/query so we land cleanly and supabase-js can pick up the session.
-  function redirectTo() {
-    return window.location.href.split("#")[0].split("?")[0];
-  }
-  function oauth(provider) {
-    return client.auth.signInWithOAuth({ provider: provider, options: { redirectTo: redirectTo() } });
-  }
-
   window.ForgeLiftAuth = {
     ready: true,
 
-    // Fires on first load, after an OAuth redirect, and on sign in / out.
+    // Fires on first load and on sign in / out.
     onChange: function (cb) {
       client.auth.onAuthStateChange(function (_event, session) { cb(session); });
     },
@@ -46,8 +36,6 @@
       return client.auth.getSession().then(function (r) { return r.data.session; });
     },
 
-    signInApple:  function () { return oauth("apple"); },
-    signInGoogle: function () { return oauth("google"); },
     signUpEmail:  function (email, password) { return client.auth.signUp({ email: email, password: password }); },
     signInEmail:  function (email, password) { return client.auth.signInWithPassword({ email: email, password: password }); },
     signOut:      function () { return client.auth.signOut(); },

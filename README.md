@@ -12,22 +12,15 @@ Serve it locally and open the printed URL:
 npm start          # → npx serve .  (any static http server works)
 ```
 
-> Use an **`http://` origin** (e.g. `localhost`), not `file://` — Supabase Auth and the OAuth redirect need a real origin.
+> Use an **`http://` origin** (e.g. `localhost`), not `file://` — Supabase Auth needs a real origin to store the session.
 
-**Sign in** with **Apple**, **Google**, or **email + password**. The first time you sign in, ForgeLift creates your profile (seeded with the machine catalog) and your data syncs from Supabase on every device you log in on.
+**Sign up / sign in** with **email + password**. The first time you sign in, ForgeLift creates your profile (seeded with the machine catalog) and your data syncs from Supabase on every device you log in on.
 
-> The app ships with the project's public Supabase URL + anon key in `js/supabase.js`, so it works out of the box once the providers are enabled (below). To use your own Supabase project, edit those two constants and apply the migrations in `supabase/migrations/`.
+> The app ships with the project's public Supabase URL + anon key in `js/supabase.js`, so it works out of the box. To use your own Supabase project, edit those two constants and apply the migrations in `supabase/migrations/`.
 
-## Auth setup (one-time, in the Supabase dashboard)
+### Email confirmation (optional)
 
-Email/password works immediately. The social providers need credentials from each vendor — ForgeLift has the code wired up; you just enable them:
-
-1. **Redirect URLs** — *Authentication → URL Configuration*: set **Site URL** and add your app origin (e.g. `http://localhost:3000`) to **Redirect URLs**.
-2. **Google** — create an OAuth client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), then paste its Client ID + Secret into *Authentication → Providers → Google* and enable it.
-3. **Apple** — from your [Apple Developer](https://developer.apple.com/) account create a Services ID + key, then fill *Authentication → Providers → Apple* and enable it. (Requires a paid Apple Developer membership.)
-4. **Email** — on by default. For instant sign-up during testing you can turn **off** *Confirm email* in *Authentication → Providers → Email*; otherwise new users must click the confirmation link before signing in.
-
-Until a provider is enabled, its button shows a friendly "not enabled yet" message instead of breaking.
+Email/password auth works immediately. By default Supabase asks new users to confirm their address — they must click the link in the email before they can sign in. For instant sign-up during testing, turn **off** *Confirm email* in *Authentication → Providers → Email* in the Supabase dashboard. If it's left on, ForgeLift shows a "check your email to confirm" message after sign-up.
 
 ## The app
 
@@ -36,14 +29,14 @@ Until a provider is enabled, its button shows a friendly "not enabled yet" messa
 | `index.html` | App entry point. |
 | `css/styles.css` | Design tokens, light/dark themes, responsive phone-on-desktop frame. |
 | `js/app.js` | All app logic — state, screens, rendering, charts, icons, session handling. |
-| `js/supabase.js` | Supabase client + the `ForgeLiftAuth` layer (OAuth / email auth + profile load / save / delete). |
+| `js/supabase.js` | Supabase client + the `ForgeLiftAuth` layer (email auth + profile load / save / delete). |
 | `supabase/migrations/` | SQL schema — the `profiles` table and its per-user RLS policies. |
 | `assets/` | Brand assets — `forgelift-icon-dark.png`, `-light.png` (1024px), `forgelift-icon.svg`, `forgelift-mark.svg`. |
 | `test-smoke.js` | Headless jsdom smoke test covering the main flows against an in-memory mock of the data layer (`npm test`). |
 
 ## Features
 
-- **Login** — real authentication via Supabase Auth: **Sign in with Apple**, **Google**, or **email + password**.
+- **Login** — real authentication via Supabase Auth: **email + password** (sign up / sign in), with a persistent session.
 - **Machines** grouped by muscle group plus a **Cardio** category, with favorites and search. A broad starter catalog (chest, back, legs, shoulders, arms, core and cardio).
 - **Per-machine line illustrations** (dot-matrix, theme-aware, generated in JS) — including cardio icons (treadmill, bike, rower, stairs…).
 - **Context-aware logging** — strength machines use +/− steppers for reps & weight; **cardio machines** (treadmill, bike, elliptical, rower…) drop reps/weight and log **duration, distance & calories** instead. Distance follows your unit (km / mi). "Duplicate last", save session.
@@ -91,7 +84,7 @@ The source design files are kept for reference:
 
 Authentication is handled by **Supabase Auth** — the browser holds a signed JWT for the logged-in user. Each user owns one row in the `profiles` table (`machines`, `logs`, `unit`, `theme` as JSON), keyed by their auth user id. **Row Level Security** policies (`auth.uid() = user_id`) mean every query the client makes is automatically scoped to that user: you can only ever read or write your own row, enforced by Postgres, not by app code. No secrets or other users' data are reachable with the public anon key.
 
-The UI follows the session: `onAuthStateChange` drives the screens, so the app reacts to first load, the OAuth redirect, and sign in / out alike.
+The UI follows the session: `onAuthStateChange` drives the screens, so the app reacts to first load and to sign in / out alike.
 
 ## Notes / next steps
 

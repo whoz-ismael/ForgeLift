@@ -40,7 +40,6 @@ const auth = {
   profiles: {},     // userId -> profile data
   session: null,    // { user: { id, email, user_metadata } }
   listeners: [],
-  lastOAuth: null,
   idSeq: 1,
 };
 function emit() { auth.listeners.forEach((cb) => cb(auth.session)); }
@@ -71,8 +70,6 @@ window.ForgeLiftAuth = {
       return { data: { session: auth.session }, error: null };
     });
   },
-  signInApple() { auth.lastOAuth = "apple"; return Promise.resolve({ data: {}, error: { message: "provider is not enabled" } }); },
-  signInGoogle() { auth.lastOAuth = "google"; return Promise.resolve({ data: {}, error: { message: "provider is not enabled" } }); },
   signOut() { setSession(null); return Promise.resolve({ error: null }); },
   loadProfile() {
     return Promise.resolve().then(() => (auth.session ? (auth.profiles[auth.session.user.id] || null) : null));
@@ -138,13 +135,8 @@ function check(name, cond) {
 
   console.log("LOGIN SCREEN");
   check("login screen rendered", /FORGE/.test($("#app").textContent));
-  check("Apple + Google + email options present", !!$('[data-action="auth-apple"]') && !!$('[data-action="auth-google"]') && !!$("#input-email"));
-
-  console.log("OAUTH (not configured → friendly error)");
-  click('[data-action="auth-google"]');
-  await wait(20);
-  check("google button invokes google provider", auth.lastOAuth === "google");
-  check("shows not-enabled message", /GOOGLE SIGN-IN NOT ENABLED/.test($("#app").textContent));
+  check("email + password form present", !!$("#input-email") && !!$("#input-password") && !!$('[data-action="auth-email"]'));
+  check("no social provider buttons", !$('[data-action="auth-apple"]') && !$('[data-action="auth-google"]'));
 
   console.log("EMAIL VALIDATION");
   await ensureMode(false);

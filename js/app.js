@@ -94,9 +94,9 @@
   }
 
   // ── auth ──
-  // The whole UI follows the Supabase session: onChange fires on first load,
-  // after an OAuth redirect, and on sign in / out. We load (or seed) the user's
-  // profile when a session appears and drop back to the login screen when it goes.
+  // The whole UI follows the Supabase session: onChange fires on first load and
+  // on sign in / out. We load (or seed) the user's profile when a session
+  // appears and drop back to the login screen when it goes.
   var sessionUserId = null;
   function boot() {
     if (!window.ForgeLiftAuth || !window.ForgeLiftAuth.ready) {
@@ -147,31 +147,6 @@
       console.error("ForgeLift: profile load failed —", e && e.message);
       setState({ screen: "login", busy: false, loginError: "COULD NOT LOAD YOUR DATA" });
     });
-  }
-
-  function authOAuth(provider) {
-    if (state.busy) return;
-    setState({ busy: true, loginError: "", loginNotice: "" });
-    var call = provider === "apple"
-      ? window.ForgeLiftAuth.signInApple()
-      : window.ForgeLiftAuth.signInGoogle();
-    // On success the browser redirects away; we only land here on an error.
-    call.then(function (res) {
-      if (res && res.error) {
-        setState({ busy: false, loginError: oauthError(provider, res.error) });
-      }
-    }).catch(function (e) {
-      console.error("ForgeLift: oauth failed —", e && e.message);
-      setState({ busy: false, loginError: "CONNECTION ERROR" });
-    });
-  }
-  function oauthError(provider, err) {
-    var m = (err && err.message ? err.message : "").toLowerCase();
-    var name = provider === "apple" ? "APPLE" : "GOOGLE";
-    if (m.indexOf("not enabled") >= 0 || m.indexOf("unsupported") >= 0 || m.indexOf("provider") >= 0) {
-      return name + " SIGN-IN NOT ENABLED YET";
-    }
-    return (err && err.message ? err.message.toUpperCase() : name + " SIGN-IN FAILED");
   }
 
   function submitEmail() {
@@ -582,28 +557,11 @@
       '</div>';
   }
 
-  // ── LOGIN (Supabase Auth: Apple / Google / email + password) ──
+  // ── LOGIN (Supabase Auth: email + password) ──
   function viewLogin(isDark, iconAccent) {
     var mark = brandMark(isDark ? "#f3f3f1" : "#111111", iconAccent);
     var signup = state.authMode === "signup";
     var submitLabel = state.busy ? "···" : (signup ? "Create account →" : "Sign in →");
-
-    // Provider marks: Apple monochrome (follows theme), Google in brand colours.
-    var glyph = isDark ? "#ffffff" : "#0a0a0a";
-    var appleMark = '<svg width="15" height="18" viewBox="0 0 384 512" fill="' + glyph + '" style="flex-shrink:0;"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>';
-    var googleMark = '<svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0;"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>';
-    var providerBtn = function (action, mark, label) {
-      return '<button data-action="' + action + '" class="hov-border-accent" ' +
-        (state.busy ? "disabled " : "") +
-        'style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;letter-spacing:0.04em;padding:13px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';margin-bottom:10px;">' + mark + '<span>' + label + '</span></button>';
-    };
-
-    var divider =
-      '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;">' +
-        '<div style="flex:1;height:1px;background:var(--border);"></div>' +
-        '<span style="font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">or</span>' +
-        '<div style="flex:1;height:1px;background:var(--border);"></div>' +
-      '</div>';
 
     var feedback = state.loginError
       ? '<div style="min-height:16px;margin-top:12px;font-size:11px;letter-spacing:0.06em;color:var(--accent);text-align:center;">' + esc(state.loginError) + '</div>'
@@ -620,12 +578,9 @@
           '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 2.4s infinite;"></span>' +
           '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Gym Tracker</span>' +
         '</div>' +
-        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:50px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:26px;">FORGE<br>LIFT</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:50px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:22px;">FORGE<br>LIFT</div>' +
 
-        providerBtn("auth-apple", appleMark, "Continue with Apple") +
-        providerBtn("auth-google", googleMark, "Continue with Google") +
-
-        divider +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">' + (signup ? "Create your account" : "Sign in to continue") + '</div>' +
 
         '<input id="input-email" type="email" value="' + esc(state.emailDraft) + '" placeholder="email" autocomplete="email" inputmode="email" style="' + inputStyle + '" />' +
         '<input id="input-password" type="password" value="' + esc(state.passwordDraft) + '" placeholder="password" autocomplete="' + (signup ? "new-password" : "current-password") + '" style="' + inputStyle + 'margin-bottom:0;" />' +
@@ -968,8 +923,6 @@
 
   // ════════════════════════ EVENTS ════════════════════════
   var ACTIONS = {
-    "auth-apple": function () { authOAuth("apple"); },
-    "auth-google": function () { authOAuth("google"); },
     "auth-email": submitEmail,
     "auth-toggle": toggleAuthMode,
     "open-settings": openSettings,
