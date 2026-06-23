@@ -6,21 +6,17 @@ The original Claude Design prototype has been brought to life as a **real, runna
 
 ## Run it
 
-Serve it locally and open the printed URL:
-
-```bash
-npm start          # → npx serve .  (any static http server works)
-```
-
-> Use an **`http://` origin** (e.g. `localhost`), not `file://` — Supabase Auth needs a real origin to store the session.
+The app is a static site (HTML/CSS/JS, no build step) deployed on **Cloudflare Pages** — just open the live URL and sign in.
 
 **Sign up / sign in** with **email + password**. The first time you sign in, ForgeLift creates your profile (seeded with the machine catalog) and your data syncs from Supabase on every device you log in on.
 
-> The app ships with the project's public Supabase URL + anon key in `js/supabase.js`, so it works out of the box. To use your own Supabase project, edit those two constants and apply the migrations in `supabase/migrations/`.
+> The app ships with the project's public Supabase URL + anon key in `js/supabase.js`. To use your own Supabase project, edit those two constants and apply the migrations in `supabase/migrations/`.
 
 ### Email confirmation (optional)
 
-Email/password auth works immediately. By default Supabase asks new users to confirm their address — they must click the link in the email before they can sign in. For instant sign-up during testing, turn **off** *Confirm email* in *Authentication → Providers → Email* in the Supabase dashboard. If it's left on, ForgeLift shows a "check your email to confirm" message after sign-up.
+Email/password auth works immediately. By default Supabase asks new users to confirm their address — they must click the link in the email before they can sign in. To skip this, turn **off** *Confirm email* in *Authentication → Providers → Email* in the Supabase dashboard. If it's left on, ForgeLift shows a "check your email to confirm" message after sign-up.
+
+> Make sure the project's **Site URL** (*Authentication → URL Configuration*) points to the deployed Cloudflare domain, so the confirmation link sends users back to the live app.
 
 ## The app
 
