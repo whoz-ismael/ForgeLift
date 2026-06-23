@@ -29,39 +29,29 @@
       <!-- LOGIN -->
       <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ true }}">
       <div style="height:100%;display:flex;flex-direction:column;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:22px 22px;">
-        <div style="flex:1;overflow:auto;display:flex;flex-direction:column;justify-content:center;padding:54px 30px 40px;">
-          <img src="{{ brandMark }}" style="width:58px;height:58px;display:block;margin-bottom:24px;" />
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <div style="flex:1;overflow:auto;display:flex;flex-direction:column;justify-content:center;padding:48px 30px 40px;">
+          <img src="{{ brandMark }}" style="width:54px;height:54px;display:block;margin-bottom:20px;" />
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
             <span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 2.4s infinite;"></span>
             <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Gym Tracker</span>
           </div>
-          <div style="font-family:'Doto',monospace;font-weight:900;font-size:54px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:34px;">FORGE<br>LIFT</div>
+          <div style="font-family:'Doto',monospace;font-weight:900;font-size:50px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:22px;">FORGE<br>LIFT</div>
 
-          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Username</div>
-          <input value="{{ usernameDraft }}" onInput="{{ onUserInput }}" placeholder="enter name" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;letter-spacing:0.02em;margin-bottom:22px;" />
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">{{ authSubtitle }}</div>
 
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <span style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);">PIN</span>
-            <div style="display:flex;gap:10px;">
-              <sc-for list="{{ pinDots }}" as="p" hint-placeholder-count="4">
-                <sc-if value="{{ p.filled }}"><span style="width:12px;height:12px;border-radius:50%;background:var(--accent);"></span></sc-if>
-                <sc-if value="{{ p.empty }}"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--border);"></span></sc-if>
-              </sc-for>
-            </div>
-          </div>
+          <input value="{{ emailDraft }}" onInput="{{ onEmailInput }}" type="email" placeholder="email" autocomplete="email" inputmode="email" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;letter-spacing:0.02em;margin-bottom:10px;" />
+          <input value="{{ passwordDraft }}" onInput="{{ onPasswordInput }}" type="password" placeholder="password" autocomplete="current-password" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;letter-spacing:0.02em;" />
 
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px;">
-            <sc-for list="{{ pinKeys }}" as="k" hint-placeholder-count="9">
-              <button onClick="{{ k.onPress }}" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Doto',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">{{ k.d }}</button>
-            </sc-for>
-            <div></div>
-            <button onClick="{{ onPin0 }}" style="height:58px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Doto',monospace;font-weight:700;font-size:26px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">0</button>
-            <button onClick="{{ onPinDel }}" style="height:58px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:13px;letter-spacing:0.1em;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--text);color:var(--text);">DEL</button>
-          </div>
+          <div style="min-height:16px;margin-top:12px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.06em;color:var(--accent);text-align:center;">{{ loginError }}</div>
 
-          <div style="height:18px;margin-top:14px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.08em;color:var(--accent);text-align:center;">{{ loginError }}</div>
-          <button onClick="{{ doLogin }}" style="width:100%;margin-top:6px;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.22em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">Enter →</button>
-          <div style="text-align:center;margin-top:14px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.1em;color:var(--muted);">New name + any 4-digit PIN creates an account</div>
+          <button onClick="{{ doAuth }}" style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.18em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">{{ authSubmitLabel }}</button>
+
+          <button onClick="{{ doAuth }}" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 10v3a8 8 0 0 1-1.5 4.7"/><path d="M8.5 8.6a5 5 0 0 1 7.5 4.3v.6"/><path d="M5.5 7a8 8 0 0 1 12.9 6"/><path d="M8 20.5a11 11 0 0 0 1.5-2.5"/><path d="M16 18a13 13 0 0 0 .9-5"/><path d="M12 13v.5a13 13 0 0 1-1.2 5.5"/></svg>
+            Sign in with a passkey
+          </button>
+
+          <div style="text-align:center;margin-top:16px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.04em;color:var(--muted);">{{ authTogglePrompt }}<span onClick="{{ toggleAuthMode }}" style="color:var(--text);cursor:pointer;text-decoration:underline;text-underline-offset:3px;">{{ authToggleAction }}</span></div>
         </div>
       </div>
       </sc-if>
@@ -368,7 +358,7 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       screen: 'login', theme: 'dark', unit: 'kg', user: null,
-      usernameDraft: '', pinDraft: '', loginError: '',
+      emailDraft: '', passwordDraft: '', authMode: 'signin', loginError: '',
       machines: [], logs: {}, activeId: null, draft: [], search: '',
       addName: '', addGroup: 'Chest', addPhoto: null,
     };
@@ -450,24 +440,22 @@ class Component extends DCLogic {
   save(patch) { this.setState(patch, () => this.persist()); }
 
   // ── login ──
-  onUserInput = (e) => this.setState({ usernameDraft: e.target.value, loginError: '' });
-  pinPress(d) { if (this.state.pinDraft.length >= 4) return; this.setState({ pinDraft: this.state.pinDraft + d, loginError: '' }); }
-  pinDel = () => this.setState({ pinDraft: this.state.pinDraft.slice(0, -1) });
-  doLogin = () => {
-    const u = this.state.usernameDraft.trim();
-    const p = this.state.pinDraft;
-    if (!u) { this.setState({ loginError: 'ENTER A USERNAME' }); return; }
-    if (p.length < 4) { this.setState({ loginError: 'PIN MUST BE 4 DIGITS' }); return; }
-    let data = null;
-    try { const raw = localStorage.getItem('replog:' + u.toLowerCase()); if (raw) data = JSON.parse(raw); } catch (e) {}
-    if (!data) data = this.seed();
+  onEmailInput = (e) => this.setState({ emailDraft: e.target.value, loginError: '' });
+  onPasswordInput = (e) => this.setState({ passwordDraft: e.target.value, loginError: '' });
+  toggleAuthMode = () => this.setState({ authMode: this.state.authMode === 'signup' ? 'signin' : 'signup', loginError: '' });
+  // Visual mock: Claude Design has no Supabase backend, so any sign-in / passkey
+  // tap enters the app with a freshly-seeded demo profile so the rest of the
+  // interface (machines, cardio, settings…) is explorable while designing.
+  doAuth = () => {
+    const data = this.seed();
+    const email = (this.state.emailDraft || '').trim();
+    const name = email ? email.split('@')[0] : 'demo';
     this.setState({
-      user: u, machines: data.machines, logs: data.logs,
-      unit: data.unit || this.state.unit, theme: data.theme || this.state.theme,
-      screen: 'home', loginError: '', pinDraft: '', usernameDraft: '',
+      user: name, machines: data.machines, logs: data.logs,
+      screen: 'home', loginError: '', emailDraft: '', passwordDraft: '',
     });
   };
-  logout = () => this.setState({ screen: 'login', user: null, machines: [], logs: {}, activeId: null, draft: [], pinDraft: '', usernameDraft: '', search: '' });
+  logout = () => this.setState({ screen: 'login', user: null, machines: [], logs: {}, activeId: null, draft: [], emailDraft: '', passwordDraft: '', authMode: 'signin', search: '' });
 
   // ── nav ──
   openSettings = () => this.setState({ screen: 'settings' });
@@ -612,8 +600,7 @@ class Component extends DCLogic {
     });
 
     // login
-    const pinDots = [0, 1, 2, 3].map(i => ({ filled: i < S.pinDraft.length, empty: i >= S.pinDraft.length }));
-    const pinKeys = ['1','2','3','4','5','6','7','8','9'].map(d => ({ d, onPress: () => this.pinPress(d) }));
+    const signup = S.authMode === 'signup';
 
     // home machine rows
     const q = S.search.trim().toLowerCase();
@@ -734,8 +721,13 @@ class Component extends DCLogic {
       showLogin: S.screen === 'login', showHome: S.screen === 'home', showMachine: S.screen === 'machine',
       showAdd: S.screen === 'add', showSettings: S.screen === 'settings',
       // login
-      usernameDraft: S.usernameDraft, pinDots, pinKeys, onUserInput: this.onUserInput,
-      onPin0: () => this.pinPress('0'), onPinDel: this.pinDel, doLogin: this.doLogin, loginError: S.loginError,
+      emailDraft: S.emailDraft, passwordDraft: S.passwordDraft,
+      onEmailInput: this.onEmailInput, onPasswordInput: this.onPasswordInput,
+      doAuth: this.doAuth, toggleAuthMode: this.toggleAuthMode, loginError: S.loginError,
+      authSubtitle: signup ? 'Create your account' : 'Sign in to continue',
+      authSubmitLabel: signup ? 'Create account →' : 'Sign in →',
+      authTogglePrompt: signup ? 'Already have an account? ' : 'New here? ',
+      authToggleAction: signup ? 'Sign in' : 'Create one',
       // home
       greeting: 'Hello, ' + (S.user || '').toUpperCase(), groups, search: S.search, onSearch: this.onSearch,
       openSettings: this.openSettings, openAdd: this.openAdd, noResults: groups.length === 0,
