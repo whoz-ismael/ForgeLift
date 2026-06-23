@@ -148,6 +148,16 @@
   function daysShort() { return (DAY_NAMES[state.lang] || DAY_NAMES.en).short; }
   function daysFull() { return (DAY_NAMES[state.lang] || DAY_NAMES.en).full; }
   function groupLabel(g) { var G = GROUP_LABELS[state.lang] || GROUP_LABELS.en; return G[g] || g; }
+  // Search normalisation: lowercase + strip accents so queries match regardless
+  // of case or diacritics.
+  function norm(s) { return String(s == null ? "" : s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+  // A machine matches a query if the query hits its (English) name, its group
+  // key, OR its translated group label — so the English machine names stay
+  // searchable in any language, and category words work in the active language.
+  function machineMatch(m, q) {
+    if (!q) return true;
+    return norm(m.name).indexOf(q) >= 0 || norm(m.group).indexOf(q) >= 0 || norm(groupLabel(m.group)).indexOf(q) >= 0;
+  }
 
   var state = {
     screen: "loading", tab: "week", theme: "dark", unit: "kg", lang: deviceLang(),
@@ -1084,8 +1094,8 @@
 
   // Library tab: full catalogue grouped by muscle, with day-assignment badges.
   function libraryBody(ul, iconStroke, iconAccent) {
-    var q = state.search.trim().toLowerCase();
-    var filt = state.machines.filter(function (m) { return !q || m.name.toLowerCase().includes(q); });
+    var q = norm(state.search.trim());
+    var filt = state.machines.filter(function (m) { return machineMatch(m, q); });
     var groups = [];
     GROUPS.forEach(function (g) {
       var items = filt.filter(function (m) { return m.group === g; });
@@ -1198,8 +1208,8 @@
     var ctxKind = week ? daysFull()[state.selectedDay] : (state.lang === "es" ? "esta rutina" : "this routine");
     var checked = function (id) { return week ? inDay(state.selectedDay, id) : inRoutine(state.selectedRoutineId, id); };
     var count = week ? dayMachineIds(state.selectedDay).length : ((routineById(state.selectedRoutineId) || { machineIds: [] }).machineIds.length);
-    var q = state.pickerSearch.trim().toLowerCase();
-    var filt = state.machines.filter(function (m) { return !q || m.name.toLowerCase().includes(q); });
+    var q = norm(state.pickerSearch.trim());
+    var filt = state.machines.filter(function (m) { return machineMatch(m, q); });
     var groups = [];
     GROUPS.forEach(function (g) {
       var items = filt.filter(function (m) { return m.group === g; });

@@ -195,6 +195,8 @@ function check(name, cond) {
   check("no example history", !/Last · \d/.test($("#app").textContent));
   setInput("#input-search", "leg");
   check("search filters to leg machines", /Leg Press/.test($("#app").textContent) && !/Chest Press/.test($("#app").textContent));
+  setInput("#input-search", "cardio");
+  check("search by category (group) finds cardio machines", /Treadmill/.test($("#app").textContent) && !/Chest Press/.test($("#app").textContent));
   setInput("#input-search", "");
 
   console.log("PLAN: ASSIGN A MACHINE TO A DAY");
