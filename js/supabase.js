@@ -60,14 +60,14 @@
     // DB columns are snake_case; the app speaks camelCase, so we map across.
     loadProfile: function () {
       return client.from("profiles")
-        .select("machines,logs,unit,theme,routine,day_names,org_mode,routine_lists,onboarded")
+        .select("machines,logs,unit,theme,lang,routine,day_names,org_mode,routine_lists,onboarded")
         .maybeSingle()
         .then(function (r) {
           if (r.error) throw r.error;
           var d = r.data;
           if (!d) return null;
           return {
-            machines: d.machines, logs: d.logs, unit: d.unit, theme: d.theme,
+            machines: d.machines, logs: d.logs, unit: d.unit, theme: d.theme, lang: d.lang,
             routine: d.routine, dayNames: d.day_names, orgMode: d.org_mode,
             routineLists: d.routine_lists, onboarded: d.onboarded,
           };
@@ -77,7 +77,7 @@
       return client.from("profiles").upsert({
         user_id: userId,
         machines: data.machines, logs: data.logs,
-        unit: data.unit, theme: data.theme,
+        unit: data.unit, theme: data.theme, lang: data.lang,
         routine: data.routine, day_names: data.dayNames,
         org_mode: data.orgMode, routine_lists: data.routineLists,
         onboarded: data.onboarded,

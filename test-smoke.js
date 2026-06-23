@@ -250,6 +250,16 @@ function check(name, cond) {
   await wait(20);
   check("unit switched to lb (persisted)", currentProfile().unit === "lb");
 
+  console.log("LANGUAGE");
+  check("settings offers a language toggle", !!$('[data-action="set-lang"][data-l="es"]'));
+  click('[data-action="set-lang"][data-l="es"]');
+  await wait(20);
+  check("UI switches to Spanish", /CONFIGURACIÓN/.test($("#app").textContent) && /Idioma/.test($("#app").textContent));
+  check("language persisted (es)", currentProfile().lang === "es");
+  click('[data-action="set-lang"][data-l="en"]');
+  await wait(20);
+  check("UI switches back to English", /SETTINGS/.test($("#app").textContent) && currentProfile().lang === "en");
+
   console.log("LOGOUT + RELOGIN");
   click('[data-action="logout"]');
   await wait(20);

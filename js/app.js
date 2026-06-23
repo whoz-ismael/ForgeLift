@@ -8,11 +8,149 @@
   var LB = 0.45359237;
   var MI = 1.609344; // kilometres per mile
   var GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Cardio"];
-  var DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  var DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+  // ── i18n ──
+  // Default language follows the device; the user can change it in onboarding
+  // or Settings, and the choice is saved with their profile.
+  function deviceLang() {
+    try {
+      var l = (navigator.language || navigator.userLanguage || "en").toLowerCase();
+      return l.indexOf("es") === 0 ? "es" : "en";
+    } catch (e) { return "en"; }
+  }
+  var DAY_NAMES = {
+    en: { short: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], full: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] },
+    es: { short: ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"], full: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] },
+  };
+  var GROUP_LABELS = {
+    en: { Chest: "Chest", Back: "Back", Legs: "Legs", Shoulders: "Shoulders", Arms: "Arms", Core: "Core", Cardio: "Cardio" },
+    es: { Chest: "Pecho", Back: "Espalda", Legs: "Piernas", Shoulders: "Hombros", Arms: "Brazos", Core: "Core", Cardio: "Cardio" },
+  };
+  var STRINGS = {
+    en: {
+      gymTracker: "Gym Tracker", loading: "Loading",
+      signInToContinue: "Sign in to continue", createYourAccount: "Create your account",
+      emailPh: "email", passwordPh: "password", signInArrow: "Sign in →", createAccountArrow: "Create account →",
+      signInWithPasskey: "Sign in with a passkey", newHere: "New here? ", alreadyHaveAccount: "Already have an account? ",
+      createOne: "Create one", signInWord: "Sign in",
+      errValidEmail: "ENTER A VALID EMAIL", errPassword6: "PASSWORD NEEDS 6+ CHARACTERS",
+      errWrongCreds: "WRONG EMAIL OR PASSWORD", errAlreadyReg: "EMAIL ALREADY REGISTERED — SIGN IN",
+      errConfirmEmail: "CONFIRM YOUR EMAIL FIRST", errSomething: "SOMETHING WENT WRONG",
+      noticeCheckEmail: "CHECK YOUR EMAIL TO CONFIRM, THEN SIGN IN",
+      errAuthUnavailable: "AUTH UNAVAILABLE — CHECK CONNECTION", errLoadData: "COULD NOT LOAD YOUR DATA",
+      errConnection: "CONNECTION ERROR", passkeyCancelled: "PASSKEY CANCELLED",
+      passkeyNone: "NO PASSKEY ON THIS DEVICE — SIGN IN WITH EMAIL FIRST", passkeyNotEnabled: "PASSKEYS NOT ENABLED FOR THIS PROJECT",
+      passkeyFailed: "PASSKEY SIGN-IN FAILED", passkeyAdding: "ADDING PASSKEY…",
+      passkeyAdded: "PASSKEY ADDED ✓ — USE IT NEXT TIME YOU SIGN IN",
+      obTitle: "LET'S SET<br>YOU UP", obIntro: "A few quick choices. You can change them later in Settings.",
+      obHowTrain: "How do you train?", obPickOrganize: "Pick how you want to organize your machines.",
+      obByDayTitle: "BY DAY OF THE WEEK", obByDayDesc: "A list of machines for each weekday you train — e.g. Monday chest, Wednesday legs.",
+      obByRoutineTitle: "BY ROUTINE LISTS", obByRoutineDesc: "Named lists like Chest &amp; Biceps or Back &amp; Abs — no fixed day required.",
+      obUnits: "Preferred units", obUnitsDesc: "How should we show weights?",
+      kgLong: "Kilograms · kg", lbLong: "Pounds · lb",
+      obLanguage: "Language", obLanguageDesc: "Which language should the app use?",
+      enterForgelift: "Enter ForgeLift →", obPickAll: "Pick all to continue",
+      myPlan: "MY PLAN", libraryUpper: "LIBRARY", planTab: "Plan", libraryTab: "Library",
+      restDay: "REST DAY", restDayBody: "Nothing planned yet.<br>Add the machines you'll use on this day.",
+      nameThisDay: "NAME THIS DAY · E.G. CHEST & ARMS",
+      noRoutinesTitle: "NO ROUTINES YET", noRoutinesBody: 'Create a routine like "Chest &amp; Biceps"<br>and fill it with the machines you use.',
+      emptyRoutineTitle: "EMPTY ROUTINE", emptyRoutineBody: "Add the machines this routine uses.",
+      nameThisRoutine: "NAME THIS ROUTINE", newRoutine: "＋ New", deleteWord: "Delete",
+      addMachines: "＋ Add Machines", newMachineBtn: "＋ New Machine",
+      searchMachines: "SEARCH MACHINES", noMachinesFound: "NO MACHINES FOUND", lastLabel: "Last",
+      addToLabel: "Add to",
+      inYourWeek: "In Your Week", inYourRoutines: "In Your Routines", noRoutinesShort: "No routines yet — create one in the Plan tab.",
+      personalBest: "Personal Best", longestTime: "Longest Time", longest: "Longest", farthest: "Farthest",
+      bestPace: "Best Pace", sessionsWord: "Sessions", caloriesWord: "Calories",
+      maxWeightOverTime: "Max Weight · Over Time", durationOverTime: "Duration · Over Time",
+      noDataSet: "NO DATA YET — LOG A SET BELOW", noDataSession: "NO DATA YET — LOG A SESSION BELOW",
+      todaysSets: "Today's Sets", todaysSession: "Today's Session", setWord: "SET", intervalWord: "INTERVAL",
+      removeWord: "REMOVE", repsLabel: "Reps", weightLabel: "Weight", durationLabel: "Duration · min",
+      distanceLabel: "Distance", caloriesLabel: "Calories · kcal", paceLabel: "Pace",
+      addSet: "＋ Add Set", addInterval: "＋ Add Interval", duplicateLast: "⎘ Duplicate Last",
+      historyWord: "History", saveSession: "Save Session ✓", addSetToSave: "Add a set to save", addIntervalToSave: "Add an interval to save",
+      setsUnit: "SETS", repsUnit: "REPS", intUnit: "INTERVAL", intsUnit: "INTERVALS", kcalUnit: "KCAL", minUnit: "min",
+      newMachineTitle: "NEW MACHINE", nameLabel: "Name", namePh: "e.g. Smith Machine", muscleGroup: "Muscle Group",
+      photoLabel: "Photo", tapGallery: "Tap to choose from gallery", saveMachine: "Save Machine ✓", enterNameToSave: "Enter a name to save",
+      settingsTitle: "SETTINGS", appearance: "Appearance", lightTheme: "Light", darkTheme: "Dark",
+      weightUnit: "Weight Unit", kg: "Kilograms", lb: "Pounds",
+      planOrganization: "Plan Organization", orgHintWeek: "Machines grouped by weekday in the Plan tab.",
+      orgHintRoutines: "Machines grouped into named routine lists.", byDay: "By Day", routines: "Routines",
+      languageSection: "Language", dataBackup: "Data & Backup", exportBtn: "⤓ Export", restoreBtn: "⤒ Restore",
+      backupHint: "On iPhone, Export opens the share sheet — choose <b style=\"color:var(--text);font-weight:700;\">Save to Files → iCloud Drive</b> and Apple syncs it across your devices. Restore loads a backup back. Elsewhere, Export just downloads the .json.",
+      account: "Account", signedIn: "Signed in", addPasskey: "Add a passkey", logOut: "Log Out", deleteAccountBtn: "Delete Account",
+      msgExportFailed: "EXPORT FAILED", msgBackupShared: "BACKUP SHARED · SAVE TO FILES FOR iCLOUD",
+      msgExportCancelled: "EXPORT CANCELLED", msgBackupDownloaded: "BACKUP DOWNLOADED",
+      msgInvalidJson: "INVALID FILE — NOT JSON", msgNotBackup: "NOT A FORGELIFT BACKUP",
+      msgRestoreCancelled: "RESTORE CANCELLED", msgCouldNotRead: "COULD NOT READ FILE", msgDeleteFailed: "DELETE FAILED — CONNECTION ERROR",
+      hello: "Hello, ",
+    },
+    es: {
+      gymTracker: "Registro de Gym", loading: "Cargando",
+      signInToContinue: "Inicia sesión para continuar", createYourAccount: "Crea tu cuenta",
+      emailPh: "email", passwordPh: "contraseña", signInArrow: "Entrar →", createAccountArrow: "Crear cuenta →",
+      signInWithPasskey: "Entrar con una passkey", newHere: "¿Sos nuevo? ", alreadyHaveAccount: "¿Ya tienes cuenta? ",
+      createOne: "Crea una", signInWord: "Inicia sesión",
+      errValidEmail: "INGRESA UN EMAIL VÁLIDO", errPassword6: "LA CONTRASEÑA NECESITA 6+ CARACTERES",
+      errWrongCreds: "EMAIL O CONTRASEÑA INCORRECTOS", errAlreadyReg: "EMAIL YA REGISTRADO — INICIA SESIÓN",
+      errConfirmEmail: "CONFIRMA TU EMAIL PRIMERO", errSomething: "ALGO SALIÓ MAL",
+      noticeCheckEmail: "REVISA TU EMAIL PARA CONFIRMAR, LUEGO INICIA SESIÓN",
+      errAuthUnavailable: "AUTENTICACIÓN NO DISPONIBLE — REVISA LA CONEXIÓN", errLoadData: "NO SE PUDIERON CARGAR TUS DATOS",
+      errConnection: "ERROR DE CONEXIÓN", passkeyCancelled: "PASSKEY CANCELADA",
+      passkeyNone: "SIN PASSKEY EN ESTE DISPOSITIVO — INICIA SESIÓN CON EMAIL", passkeyNotEnabled: "PASSKEYS NO HABILITADAS EN ESTE PROYECTO",
+      passkeyFailed: "FALLÓ EL INGRESO CON PASSKEY", passkeyAdding: "AGREGANDO PASSKEY…",
+      passkeyAdded: "PASSKEY AGREGADA ✓ — ÚSALA LA PRÓXIMA VEZ",
+      obTitle: "CONFIGUREMOS<br>TU CUENTA", obIntro: "Unas elecciones rápidas. Puedes cambiarlas luego en Configuración.",
+      obHowTrain: "¿Cómo entrenas?", obPickOrganize: "Elige cómo organizar tus máquinas.",
+      obByDayTitle: "POR DÍA DE LA SEMANA", obByDayDesc: "Una lista de máquinas para cada día que entrenas — ej. lunes pecho, miércoles piernas.",
+      obByRoutineTitle: "POR LISTAS DE RUTINA", obByRoutineDesc: "Listas con nombre como Pecho &amp; Bíceps o Espalda &amp; Abdomen — sin día fijo.",
+      obUnits: "Unidades preferidas", obUnitsDesc: "¿Cómo mostramos los pesos?",
+      kgLong: "Kilogramos · kg", lbLong: "Libras · lb",
+      obLanguage: "Idioma", obLanguageDesc: "¿Qué idioma debe usar la app?",
+      enterForgelift: "Entrar a ForgeLift →", obPickAll: "Elige todo para continuar",
+      myPlan: "MI PLAN", libraryUpper: "BIBLIOTECA", planTab: "Plan", libraryTab: "Biblioteca",
+      restDay: "DÍA DE DESCANSO", restDayBody: "Nada planeado aún.<br>Agrega las máquinas que usarás este día.",
+      nameThisDay: "NOMBRA ESTE DÍA · EJ. PECHO & BRAZOS",
+      noRoutinesTitle: "AÚN SIN RUTINAS", noRoutinesBody: 'Crea una rutina como "Pecho &amp; Bíceps"<br>y llénala con las máquinas que usas.',
+      emptyRoutineTitle: "RUTINA VACÍA", emptyRoutineBody: "Agrega las máquinas de esta rutina.",
+      nameThisRoutine: "NOMBRA ESTA RUTINA", newRoutine: "＋ Nueva", deleteWord: "Borrar",
+      addMachines: "＋ Agregar máquinas", newMachineBtn: "＋ Nueva máquina",
+      searchMachines: "BUSCAR MÁQUINAS", noMachinesFound: "SIN RESULTADOS", lastLabel: "Última",
+      addToLabel: "Agregar a",
+      inYourWeek: "En tu semana", inYourRoutines: "En tus rutinas", noRoutinesShort: "Aún sin rutinas — crea una en la pestaña Plan.",
+      personalBest: "Récord personal", longestTime: "Tiempo más largo", longest: "Más largo", farthest: "Más lejos",
+      bestPace: "Mejor ritmo", sessionsWord: "Sesiones", caloriesWord: "Calorías",
+      maxWeightOverTime: "Peso máx · En el tiempo", durationOverTime: "Duración · En el tiempo",
+      noDataSet: "SIN DATOS — REGISTRA UNA SERIE ABAJO", noDataSession: "SIN DATOS — REGISTRA UNA SESIÓN ABAJO",
+      todaysSets: "Series de hoy", todaysSession: "Sesión de hoy", setWord: "SERIE", intervalWord: "INTERVALO",
+      removeWord: "QUITAR", repsLabel: "Reps", weightLabel: "Peso", durationLabel: "Duración · min",
+      distanceLabel: "Distancia", caloriesLabel: "Calorías · kcal", paceLabel: "Ritmo",
+      addSet: "＋ Agregar serie", addInterval: "＋ Agregar intervalo", duplicateLast: "⎘ Duplicar última",
+      historyWord: "Historial", saveSession: "Guardar sesión ✓", addSetToSave: "Agrega una serie para guardar", addIntervalToSave: "Agrega un intervalo para guardar",
+      setsUnit: "SERIES", repsUnit: "REPS", intUnit: "INTERVALO", intsUnit: "INTERVALOS", kcalUnit: "KCAL", minUnit: "min",
+      newMachineTitle: "NUEVA MÁQUINA", nameLabel: "Nombre", namePh: "ej. Multipower", muscleGroup: "Grupo muscular",
+      photoLabel: "Foto", tapGallery: "Toca para elegir de la galería", saveMachine: "Guardar máquina ✓", enterNameToSave: "Ingresa un nombre para guardar",
+      settingsTitle: "CONFIGURACIÓN", appearance: "Apariencia", lightTheme: "Claro", darkTheme: "Oscuro",
+      weightUnit: "Unidad de peso", kg: "Kilogramos", lb: "Libras",
+      planOrganization: "Organización del plan", orgHintWeek: "Máquinas agrupadas por día en la pestaña Plan.",
+      orgHintRoutines: "Máquinas agrupadas en listas de rutina.", byDay: "Por día", routines: "Rutinas",
+      languageSection: "Idioma", dataBackup: "Datos y respaldo", exportBtn: "⤓ Exportar", restoreBtn: "⤒ Restaurar",
+      backupHint: "En iPhone, Exportar abre el menú de compartir — elige <b style=\"color:var(--text);font-weight:700;\">Guardar en Archivos → iCloud Drive</b> y Apple lo sincroniza entre tus dispositivos. Restaurar carga un respaldo. En otros lados, Exportar solo descarga el .json.",
+      account: "Cuenta", signedIn: "Sesión iniciada", addPasskey: "Agregar una passkey", logOut: "Cerrar sesión", deleteAccountBtn: "Borrar cuenta",
+      msgExportFailed: "FALLÓ LA EXPORTACIÓN", msgBackupShared: "RESPALDO COMPARTIDO · GUARDAR EN ARCHIVOS PARA iCLOUD",
+      msgExportCancelled: "EXPORTACIÓN CANCELADA", msgBackupDownloaded: "RESPALDO DESCARGADO",
+      msgInvalidJson: "ARCHIVO INVÁLIDO — NO ES JSON", msgNotBackup: "NO ES UN RESPALDO DE FORGELIFT",
+      msgRestoreCancelled: "RESTAURACIÓN CANCELADA", msgCouldNotRead: "NO SE PUDO LEER EL ARCHIVO", msgDeleteFailed: "FALLÓ EL BORRADO — ERROR DE CONEXIÓN",
+      hello: "Hola, ",
+    },
+  };
+  function t(key) { var L = STRINGS[state.lang] || STRINGS.en; return L[key] != null ? L[key] : (STRINGS.en[key] != null ? STRINGS.en[key] : key); }
+  function daysShort() { return (DAY_NAMES[state.lang] || DAY_NAMES.en).short; }
+  function daysFull() { return (DAY_NAMES[state.lang] || DAY_NAMES.en).full; }
+  function groupLabel(g) { var G = GROUP_LABELS[state.lang] || GROUP_LABELS.en; return G[g] || g; }
 
   var state = {
-    screen: "loading", tab: "week", theme: "dark", unit: "kg",
+    screen: "loading", tab: "week", theme: "dark", unit: "kg", lang: deviceLang(),
     user: null,                                  // { id, name, email }
     authMode: "signin",                          // "signin" | "signup"
     emailDraft: "", passwordDraft: "",
@@ -103,7 +241,7 @@
     var u = state.user;
     if (!u) return;
     var snapshot = {
-      machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme,
+      machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme, lang: state.lang,
       routine: state.routine, dayNames: state.dayNames, orgMode: state.orgMode,
       routineLists: state.routineLists, onboarded: state.onboarded,
     };
@@ -124,7 +262,7 @@
   var sessionUserId = null;
   function boot() {
     if (!window.ForgeLiftAuth || !window.ForgeLiftAuth.ready) {
-      setState({ screen: "login", loginError: "AUTH UNAVAILABLE — CHECK CONNECTION" });
+      setState({ screen: "login", loginError: t("errAuthUnavailable") });
       return;
     }
     window.ForgeLiftAuth.onChange(handleSession);
@@ -146,7 +284,7 @@
         screen: "login", tab: "week", user: null, machines: [], logs: {}, activeId: null,
         draft: [], search: "", pickerSearch: "", busy: false, authMode: "signin",
         routine: {}, dayNames: {}, routineLists: [], selectedRoutineId: null,
-        orgMode: "week", onboarded: false, obMode: null, obUnit: null,
+        orgMode: "week", onboarded: false, obMode: null, obUnit: null, lang: deviceLang(),
         passwordDraft: "", loginError: "", loginNotice: "",
         settingsMsg: "", settingsMsgOk: false,
       });
@@ -162,7 +300,7 @@
           routine: row.routine || {}, dayNames: row.dayNames || {},
           routineLists: lists, selectedRoutineId: (lists[0] || {}).id || null,
           orgMode: row.orgMode || "week", selectedDay: todayIdx(), onboarded: true,
-          unit: row.unit || state.unit, theme: row.theme || state.theme,
+          unit: row.unit || state.unit, theme: row.theme || state.theme, lang: row.lang || state.lang,
           screen: "home", tab: "week", busy: false, emailDraft: "", passwordDraft: "",
           loginError: "", loginNotice: "",
         });
@@ -180,13 +318,14 @@
           routineLists: lists, selectedRoutineId: (lists[0] || {}).id || null,
           orgMode: (row && row.orgMode) || "week", selectedDay: todayIdx(), onboarded: false,
           unit: (row && row.unit) || state.unit, theme: (row && row.theme) || state.theme,
+          lang: (row && row.lang) || state.lang,
           screen: "onboarding", obMode: null, obUnit: null,
           busy: false, emailDraft: "", passwordDraft: "", loginError: "", loginNotice: "",
         });
       }
     }).catch(function (e) {
       console.error("ForgeLift: profile load failed —", e && e.message);
-      setState({ screen: "login", busy: false, loginError: "COULD NOT LOAD YOUR DATA" });
+      setState({ screen: "login", busy: false, loginError: t("errLoadData") });
     });
   }
 
@@ -195,8 +334,8 @@
     var email = state.emailDraft.trim();
     var pw = state.passwordDraft;
     var signup = state.authMode === "signup";
-    if (!email || email.indexOf("@") < 0) { setState({ loginError: "ENTER A VALID EMAIL" }); return; }
-    if (pw.length < 6) { setState({ loginError: "PASSWORD NEEDS 6+ CHARACTERS" }); return; }
+    if (!email || email.indexOf("@") < 0) { setState({ loginError: t("errValidEmail") }); return; }
+    if (pw.length < 6) { setState({ loginError: t("errPassword6") }); return; }
     setState({ busy: true, loginError: "", loginNotice: "" });
     var call = signup
       ? window.ForgeLiftAuth.signUpEmail(email, pw)
@@ -205,22 +344,22 @@
       if (res && res.error) { setState({ busy: false, loginError: authError(res.error) }); return; }
       // Sign-up with email confirmation on → no session yet; tell the user.
       if (signup && res && res.data && !res.data.session) {
-        setState({ busy: false, loginError: "", loginNotice: "CHECK YOUR EMAIL TO CONFIRM, THEN SIGN IN", authMode: "signin", passwordDraft: "" });
+        setState({ busy: false, loginError: "", loginNotice: t("noticeCheckEmail"), authMode: "signin", passwordDraft: "" });
         return;
       }
       // Otherwise the session arrives via onChange, which navigates home.
     }).catch(function (e) {
       console.error("ForgeLift: email auth failed —", e && e.message);
-      setState({ busy: false, loginError: "CONNECTION ERROR" });
+      setState({ busy: false, loginError: t("errConnection") });
     });
   }
   function authError(err) {
     var m = (err && err.message ? err.message : "").toLowerCase();
-    if (m.indexOf("invalid login") >= 0) return "WRONG EMAIL OR PASSWORD";
-    if (m.indexOf("already registered") >= 0 || m.indexOf("already exists") >= 0) return "EMAIL ALREADY REGISTERED — SIGN IN";
-    if (m.indexOf("not confirmed") >= 0) return "CONFIRM YOUR EMAIL FIRST";
-    if (m.indexOf("password") >= 0) return "PASSWORD NEEDS 6+ CHARACTERS";
-    return (err && err.message ? err.message.toUpperCase() : "SOMETHING WENT WRONG");
+    if (m.indexOf("invalid login") >= 0) return t("errWrongCreds");
+    if (m.indexOf("already registered") >= 0 || m.indexOf("already exists") >= 0) return t("errAlreadyReg");
+    if (m.indexOf("not confirmed") >= 0) return t("errConfirmEmail");
+    if (m.indexOf("password") >= 0) return t("errPassword6");
+    return (err && err.message ? err.message.toUpperCase() : t("errSomething"));
   }
   function toggleAuthMode() {
     setState({ authMode: state.authMode === "signin" ? "signup" : "signin", loginError: "", loginNotice: "" });
@@ -233,10 +372,10 @@
   function passkeyError(err) {
     var name = (err && err.name) || "";
     var m = (err && err.message ? err.message : "").toLowerCase();
-    if (name === "NotAllowedError" || m.indexOf("cancel") >= 0 || m.indexOf("not allowed") >= 0) return "PASSKEY CANCELLED";
-    if (m.indexOf("no ") >= 0 && m.indexOf("passkey") >= 0) return "NO PASSKEY ON THIS DEVICE — SIGN IN WITH EMAIL FIRST";
-    if (m.indexOf("not enabled") >= 0 || m.indexOf("disabled") >= 0) return "PASSKEYS NOT ENABLED FOR THIS PROJECT";
-    return "PASSKEY SIGN-IN FAILED";
+    if (name === "NotAllowedError" || m.indexOf("cancel") >= 0 || m.indexOf("not allowed") >= 0) return t("passkeyCancelled");
+    if (m.indexOf("no ") >= 0 && m.indexOf("passkey") >= 0) return t("passkeyNone");
+    if (m.indexOf("not enabled") >= 0 || m.indexOf("disabled") >= 0) return t("passkeyNotEnabled");
+    return t("passkeyFailed");
   }
   function authPasskey() {
     if (state.busy) return;
@@ -249,10 +388,10 @@
     });
   }
   function addPasskey() {
-    setState({ settingsMsg: "ADDING PASSKEY…", settingsMsgOk: true });
+    setState({ settingsMsg: t("passkeyAdding"), settingsMsgOk: true });
     window.ForgeLiftAuth.registerPasskey().then(function (res) {
       if (res && res.error) { setState({ settingsMsg: passkeyError(res.error), settingsMsgOk: false }); return; }
-      setState({ settingsMsg: "PASSKEY ADDED ✓ — USE IT NEXT TIME YOU SIGN IN", settingsMsgOk: true });
+      setState({ settingsMsg: t("passkeyAdded"), settingsMsgOk: true });
     }).catch(function (e) {
       setState({ settingsMsg: passkeyError(e), settingsMsgOk: false });
     });
@@ -264,7 +403,7 @@
       screen: "login", tab: "week", user: null, machines: [], logs: {}, activeId: null,
       draft: [], search: "", pickerSearch: "", busy: false, authMode: "signin",
       routine: {}, dayNames: {}, routineLists: [], selectedRoutineId: null,
-      orgMode: "week", onboarded: false, obMode: null, obUnit: null,
+      orgMode: "week", onboarded: false, obMode: null, obUnit: null, lang: deviceLang(),
       passwordDraft: "", emailDraft: "", loginError: "", loginNotice: "",
       settingsMsg: "", settingsMsgOk: false,
     });
@@ -289,6 +428,8 @@
   // ── onboarding (first sign-in: pick organisation + units) ──
   function setObMode(m) { setState({ obMode: m }); }
   function setObUnit(u) { setState({ obUnit: u }); }
+  // Language can be changed live in onboarding (no persist yet) or Settings (persist).
+  function setLang(l) { setState({ lang: l }, state.onboarded); }
   function finishOnboarding() {
     if (!state.obMode || !state.obUnit) return;
     setState({ orgMode: state.obMode, unit: state.obUnit, onboarded: true, screen: "home", tab: "week" }, true);
@@ -297,7 +438,7 @@
   // ── weekday assignments (routine[dayIdx] = [machineId…]) ──
   function dayMachineIds(i) { return state.routine[i] || []; }
   function inDay(i, id) { return dayMachineIds(i).indexOf(id) !== -1; }
-  function machineDays(id) { var out = []; for (var i = 0; i < 7; i++) { if (inDay(i, id)) out.push(DAYS[i]); } return out; }
+  function machineDays(id) { var out = [], d = daysShort(); for (var i = 0; i < 7; i++) { if (inDay(i, id)) out.push(d[i]); } return out; }
   function toggleDayMachine(i, id) {
     var cur = dayMachineIds(i);
     var next = cur.indexOf(id) !== -1 ? cur.filter(function (x) { return x !== id; }) : cur.concat([id]);
@@ -550,7 +691,7 @@
       var slug = who.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
       filename = "forgelift-" + slug + "-" + new Date().toISOString().slice(0, 10) + ".json";
     } catch (e) {
-      setState({ settingsMsg: "EXPORT FAILED", settingsMsgOk: false });
+      setState({ settingsMsg: t("msgExportFailed"), settingsMsgOk: false });
       return;
     }
 
@@ -561,13 +702,13 @@
         var file = new File([json], filename, { type: "application/json" });
         if (navigator.canShare({ files: [file] })) {
           navigator.share({ files: [file], title: "ForgeLift backup" })
-            .then(function () { setState({ settingsMsg: "BACKUP SHARED · SAVE TO FILES FOR iCLOUD", settingsMsgOk: true }); })
+            .then(function () { setState({ settingsMsg: t("msgBackupShared"), settingsMsgOk: true }); })
             .catch(function (err) {
               if (err && err.name === "AbortError") {
-                setState({ settingsMsg: "EXPORT CANCELLED", settingsMsgOk: false });
+                setState({ settingsMsg: t("msgExportCancelled"), settingsMsgOk: false });
               } else {
                 downloadBackup(json, filename);
-                setState({ settingsMsg: "BACKUP DOWNLOADED", settingsMsgOk: true });
+                setState({ settingsMsg: t("msgBackupDownloaded"), settingsMsgOk: true });
               }
             });
           return;
@@ -578,9 +719,9 @@
     // Fallback (desktop / Android / unsupported): normal file download.
     try {
       downloadBackup(json, filename);
-      setState({ settingsMsg: "BACKUP DOWNLOADED", settingsMsgOk: true });
+      setState({ settingsMsg: t("msgBackupDownloaded"), settingsMsgOk: true });
     } catch (e) {
-      setState({ settingsMsg: "EXPORT FAILED", settingsMsgOk: false });
+      setState({ settingsMsg: t("msgExportFailed"), settingsMsgOk: false });
     }
   }
 
@@ -590,14 +731,18 @@
     r.onload = function () {
       var parsed;
       try { parsed = JSON.parse(r.result); } catch (e) {
-        setState({ settingsMsg: "INVALID FILE — NOT JSON", settingsMsgOk: false }); return;
+        setState({ settingsMsg: t("msgInvalidJson"), settingsMsgOk: false }); return;
       }
       var d = parsed && parsed.data ? parsed.data : parsed; // accept full backup or raw data
       if (!d || !Array.isArray(d.machines)) {
-        setState({ settingsMsg: "NOT A FORGELIFT BACKUP", settingsMsgOk: false }); return;
+        setState({ settingsMsg: t("msgNotBackup"), settingsMsgOk: false }); return;
       }
-      if (!window.confirm("Restore this backup? It replaces the current machines and history for \"" + ((state.user && state.user.name) || "this account") + "\".")) {
-        setState({ settingsMsg: "RESTORE CANCELLED", settingsMsgOk: false }); return;
+      var who = (state.user && state.user.name) || (state.lang === "es" ? "esta cuenta" : "this account");
+      var confirmMsg = state.lang === "es"
+        ? "¿Restaurar este respaldo? Reemplaza las máquinas e historial actuales de \"" + who + "\"."
+        : "Restore this backup? It replaces the current machines and history for \"" + who + "\".";
+      if (!window.confirm(confirmMsg)) {
+        setState({ settingsMsg: t("msgRestoreCancelled"), settingsMsgOk: false }); return;
       }
       var machines = sanitizeMachines(d.machines);
       var logs = sanitizeLogs(d.logs);
@@ -612,22 +757,25 @@
         machines: machines, logs: logs, unit: unit, theme: theme,
         routine: routine, dayNames: dayNames, routineLists: routineLists, orgMode: orgMode,
         selectedRoutineId: (routineLists[0] || {}).id || null,
-        settingsMsg: "BACKUP RESTORED · " + machines.length + " MACHINES", settingsMsgOk: true,
+        settingsMsg: (state.lang === "es" ? "RESPALDO RESTAURADO · " + machines.length + " MÁQUINAS" : "BACKUP RESTORED · " + machines.length + " MACHINES"), settingsMsgOk: true,
       }, true);
     };
-    r.onerror = function () { setState({ settingsMsg: "COULD NOT READ FILE", settingsMsgOk: false }); };
+    r.onerror = function () { setState({ settingsMsg: t("msgCouldNotRead"), settingsMsgOk: false }); };
     r.readAsText(file);
   }
 
   function deleteAccount() {
     var u = state.user;
     if (!u) return;
-    if (!window.confirm("Erase all workout data for \"" + u.email + "\"? This wipes your machines and history and cannot be undone. You'll be signed out.")) return;
+    var delMsg = state.lang === "es"
+      ? "¿Borrar todos los datos de entrenamiento de \"" + u.email + "\"? Esto elimina tus máquinas e historial y no se puede deshacer. Se cerrará tu sesión."
+      : "Erase all workout data for \"" + u.email + "\"? This wipes your machines and history and cannot be undone. You'll be signed out.";
+    if (!window.confirm(delMsg)) return;
     window.ForgeLiftAuth.deleteProfile(u.id).then(function () {
       logout();
     }).catch(function (e) {
       console.error("ForgeLift: delete failed —", e && e.message);
-      setState({ settingsMsg: "DELETE FAILED — CONNECTION ERROR", settingsMsgOk: false });
+      setState({ settingsMsg: t("msgDeleteFailed"), settingsMsgOk: false });
     });
   }
 
@@ -644,7 +792,8 @@
   }
   function fmtDate(iso) {
     try {
-      return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
+      var loc = state.lang === "es" ? "es-ES" : "en-US";
+      return new Date(iso + "T00:00:00").toLocaleDateString(loc, { month: "short", day: "2-digit" }).toUpperCase();
     } catch (e) { return iso; }
   }
   function lastDetail(m) {
@@ -775,7 +924,7 @@
         '<img src="' + mark + '" alt="ForgeLift" style="width:56px;height:56px;display:block;opacity:0.9;" />' +
         '<div style="display:flex;align-items:center;gap:8px;">' +
           '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 1.2s infinite;"></span>' +
-          '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Loading</span>' +
+          '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">' + t("loading") + '</span>' +
         '</div>' +
       '</div>';
   }
@@ -784,7 +933,7 @@
   function viewLogin(isDark, iconAccent) {
     var mark = brandMark(isDark ? "#f3f3f1" : "#111111", iconAccent);
     var signup = state.authMode === "signup";
-    var submitLabel = state.busy ? "···" : (signup ? "Create account →" : "Sign in →");
+    var submitLabel = state.busy ? "···" : (signup ? t("createAccountArrow") : t("signInArrow"));
 
     var feedback = state.loginError
       ? '<div style="min-height:16px;margin-top:12px;font-size:11px;letter-spacing:0.06em;color:var(--accent);text-align:center;">' + esc(state.loginError) + '</div>'
@@ -799,27 +948,27 @@
         '<img src="' + mark + '" alt="ForgeLift" style="width:54px;height:54px;display:block;margin-bottom:20px;" />' +
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
           '<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;animation:rl-blink 2.4s infinite;"></span>' +
-          '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Gym Tracker</span>' +
+          '<span style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">' + t("gymTracker") + '</span>' +
         '</div>' +
         '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:50px;line-height:0.92;letter-spacing:0.01em;color:var(--text);margin-bottom:22px;">FORGE<br>LIFT</div>' +
 
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">' + (signup ? "Create your account" : "Sign in to continue") + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">' + (signup ? t("createYourAccount") : t("signInToContinue")) + '</div>' +
 
-        '<input id="input-email" type="email" value="' + esc(state.emailDraft) + '" placeholder="email" autocomplete="email" inputmode="email" style="' + inputStyle + '" />' +
-        '<input id="input-password" type="password" value="' + esc(state.passwordDraft) + '" placeholder="password" autocomplete="' + (signup ? "new-password" : "current-password") + '" style="' + inputStyle + 'margin-bottom:0;" />' +
+        '<input id="input-email" type="email" value="' + esc(state.emailDraft) + '" placeholder="' + esc(t("emailPh")) + '" autocomplete="email" inputmode="email" style="' + inputStyle + '" />' +
+        '<input id="input-password" type="password" value="' + esc(state.passwordDraft) + '" placeholder="' + esc(t("passwordPh")) + '" autocomplete="' + (signup ? "new-password" : "current-password") + '" style="' + inputStyle + 'margin-bottom:0;" />' +
 
         feedback +
 
         '<button data-action="auth-email" class="hov-bright" ' + (state.busy ? "disabled " : "") + 'style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.18em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';">' + submitLabel + '</button>' +
 
         (passkeysAvailable()
-          ? '<button data-action="auth-passkey" class="hov-border-accent" ' + (state.busy ? "disabled " : "") + 'style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:1px solid var(--border);color:var(--text);font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';">' + passkeyIcon() + 'Sign in with a passkey</button>'
+          ? '<button data-action="auth-passkey" class="hov-border-accent" ' + (state.busy ? "disabled " : "") + 'style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:1px solid var(--border);color:var(--text);font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';">' + passkeyIcon() + esc(t("signInWithPasskey")) + '</button>'
           : '') +
 
         '<div style="text-align:center;margin-top:16px;font-size:11px;letter-spacing:0.04em;color:var(--muted);">' +
-          (signup ? "Already have an account? " : "New here? ") +
+          (signup ? t("alreadyHaveAccount") : t("newHere")) +
           '<a data-action="auth-toggle" style="color:var(--text);cursor:pointer;text-decoration:underline;text-underline-offset:3px;">' +
-          (signup ? "Sign in" : "Create one") + '</a>' +
+          (signup ? t("signInWord") : t("createOne")) + '</a>' +
         '</div>' +
       '</div></div>';
   }
@@ -849,28 +998,32 @@
           '<div style="font-size:11px;letter-spacing:0.02em;line-height:1.55;color:var(--muted);">' + desc + '</div></div>' +
         '</div>';
     };
-    var unitBtn = function (u, label) {
-      var on = state.obUnit === u;
+    var pickBtn = function (action, attr, val, current, label) {
+      var on = current === val;
       var st = "flex:1;background:" + (on ? "var(--accent)" : "transparent") + ";color:" + (on ? "#fff" : "var(--muted)") + ";border:1.5px solid " + (on ? "var(--accent)" : "var(--border)") + ";font-weight:700;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;padding:16px;border-radius:6px;cursor:pointer;";
-      return '<button data-action="ob-unit" data-u="' + u + '" style="' + st + '">' + label + '</button>';
+      return '<button data-action="' + action + '" ' + attr + '="' + val + '" style="' + st + '">' + label + '</button>';
+    };
+    var sectionTitle = function (title, sub) {
+      return '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:5px;">' + title + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.04em;color:var(--muted);margin-bottom:13px;">' + sub + '</div>';
     };
     var ready = !!(state.obMode && state.obUnit);
     var btn = ready
-      ? '<button data-action="finish-onboarding" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;">Enter ForgeLift →</button>'
-      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:13px;letter-spacing:0.16em;text-transform:uppercase;padding:17px;border-radius:4px;text-align:center;">Pick both to continue</div>';
+      ? '<button data-action="finish-onboarding" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;">' + esc(t("enterForgelift")) + '</button>'
+      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:13px;letter-spacing:0.16em;text-transform:uppercase;padding:17px;border-radius:4px;text-align:center;">' + esc(t("obPickAll")) + '</div>';
     return '<div class="screen" style="display:flex;flex-direction:column;">' +
       '<div style="flex:1;overflow:auto;padding:54px 26px 24px;">' +
-        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:40px;line-height:0.9;letter-spacing:0.01em;color:var(--text);margin-bottom:8px;">LET\'S SET<br>YOU UP</div>' +
-        '<div style="font-size:11px;letter-spacing:0.04em;line-height:1.6;color:var(--muted);margin-bottom:30px;">Two quick choices. You can change both later in Settings.</div>' +
-        '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:5px;">How do you train?</div>' +
-        '<div style="font-size:10px;letter-spacing:0.04em;color:var(--muted);margin-bottom:13px;">Pick how you want to organize your machines.</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:40px;line-height:0.9;letter-spacing:0.01em;color:var(--text);margin-bottom:8px;">' + t("obTitle") + '</div>' +
+        '<div style="font-size:11px;letter-spacing:0.04em;line-height:1.6;color:var(--muted);margin-bottom:30px;">' + esc(t("obIntro")) + '</div>' +
+        sectionTitle(esc(t("obHowTrain")), esc(t("obPickOrganize"))) +
         '<div style="display:flex;flex-direction:column;gap:11px;margin-bottom:30px;">' +
-          card("week", "BY DAY OF THE WEEK", "A list of machines for each weekday you train — e.g. Monday chest, Wednesday legs.") +
-          card("routines", "BY ROUTINE LISTS", "Named lists like Chest &amp; Biceps or Back &amp; Abs — no fixed day required.") +
+          card("week", t("obByDayTitle"), t("obByDayDesc")) +
+          card("routines", t("obByRoutineTitle"), t("obByRoutineDesc")) +
         '</div>' +
-        '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:5px;">Preferred units</div>' +
-        '<div style="font-size:10px;letter-spacing:0.04em;color:var(--muted);margin-bottom:13px;">How should we show weights?</div>' +
-        '<div style="display:flex;gap:11px;">' + unitBtn("kg", "Kilograms · kg") + unitBtn("lb", "Pounds · lb") + '</div>' +
+        sectionTitle(esc(t("obUnits")), esc(t("obUnitsDesc"))) +
+        '<div style="display:flex;gap:11px;margin-bottom:30px;">' + pickBtn("ob-unit", "data-u", "kg", state.obUnit, esc(t("kgLong"))) + pickBtn("ob-unit", "data-u", "lb", state.obUnit, esc(t("lbLong"))) + '</div>' +
+        sectionTitle(esc(t("obLanguage")), esc(t("obLanguageDesc"))) +
+        '<div style="display:flex;gap:11px;">' + pickBtn("ob-lang", "data-l", "en", state.lang, "English") + pickBtn("ob-lang", "data-l", "es", state.lang, "Español") + '</div>' +
       '</div>' +
       '<div style="flex-shrink:0;padding:14px 26px 30px;background:linear-gradient(to top,var(--bg) 70%,transparent);">' + btn + '</div>' +
     '</div>';
@@ -910,8 +1063,8 @@
 
   // ── HOME (Plan / Library tabs) ──
   function viewHome(ul, iconStroke, iconAccent) {
-    var greeting = "Hello, " + ((state.user && state.user.name) || "").toUpperCase();
-    var homeTitle = state.tab === "week" ? "MY PLAN" : "LIBRARY";
+    var greeting = t("hello") + ((state.user && state.user.name) || "").toUpperCase();
+    var homeTitle = state.tab === "week" ? t("myPlan") : t("libraryUpper");
     var settingsBtn = '<button data-action="open-settings" class="hov-border-accent" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg></button>';
     var tabBtn = function (active, action, label) {
       var st = "flex:1;background:" + (active ? "var(--text)" : "transparent") + ";color:" + (active ? "var(--bg)" : "var(--muted)") + ";border:1px solid " + (active ? "var(--text)" : "var(--border)") + ";font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:12px;border-radius:5px;cursor:pointer;";
@@ -922,7 +1075,7 @@
           '<div><div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(greeting) + '</div>' +
           '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:38px;line-height:0.95;color:var(--text);">' + homeTitle + '</div></div>' + settingsBtn +
         '</div>' +
-        '<div style="display:flex;gap:8px;margin-top:16px;">' + tabBtn(state.tab === "week", "go-week", "Plan") + tabBtn(state.tab === "library", "go-library", "Library") + '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:16px;">' + tabBtn(state.tab === "week", "go-week", t("planTab")) + tabBtn(state.tab === "library", "go-library", t("libraryTab")) + '</div>' +
       '</div>';
 
     if (state.tab === "library") return header + libraryBody(ul, iconStroke, iconAccent);
@@ -953,28 +1106,28 @@
       return '<div data-action="open-machine" data-id="' + esc(m.id) + '" style="display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer;">' +
         thumbHtml(m, 42, iconStroke, iconAccent) +
         '<div style="flex:1;min-width:0;"><div style="font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(m.name) + '</div>' +
-        '<div style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Last · ' + esc(lastDetail(m)) + '</div></div>' +
+        '<div style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">' + esc(t("lastLabel")) + ' · ' + esc(lastDetail(m)) + '</div></div>' +
         badge +
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex-shrink:0;"><path d="M9 5l7 7-7 7"></path></svg>' +
       '</div>';
     };
     var listHtml = groups.map(function (g) {
       return '<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">' +
-          '<span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(g.group) + '</span>' +
+          '<span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(groupLabel(g.group)) + '</span>' +
           '<span style="font-size:10px;color:var(--muted);">' + g.items.length + '</span>' +
           '<span style="flex:1;height:1px;background:var(--border);"></span>' +
         '</div>' + g.items.map(row).join("");
     }).join("");
-    if (!groups.length) listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div>';
+    if (!groups.length) listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">' + esc(t("noMachinesFound")) + '</div>';
     return '<div style="padding:16px 22px 0;flex-shrink:0;">' +
         '<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">' +
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>' +
-          '<input id="input-search" value="' + esc(state.search) + '" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" />' +
+          '<input id="input-search" value="' + esc(state.search) + '" placeholder="' + esc(t("searchMachines")) + '" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" />' +
         '</div>' +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:6px 22px 120px;">' + listHtml + '</div>' +
       '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">' +
-        '<button data-action="open-add" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">＋ New Machine</button>' +
+        '<button data-action="open-add" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">' + esc(t("newMachineBtn")) + '</button>' +
       '</div>';
   }
 
@@ -982,7 +1135,7 @@
   function planBody(iconStroke, iconAccent) {
     var inner, addBtn = true;
     if (state.orgMode === "week") {
-      var pills = DAYS.map(function (short, i) {
+      var pills = daysShort().map(function (short, i) {
         var sel = i === state.selectedDay, isToday = i === todayIdx(), n = dayMachineIds(i).length;
         var ps = "flex:1;min-width:0;padding:9px 2px;border-radius:7px;cursor:pointer;text-align:center;background:" + (sel ? "var(--text)" : "var(--surface)") + ";border:1px solid " + (sel ? "var(--text)" : "var(--border)") + ";";
         var ls = "display:block;font-family:'Doto',monospace;font-weight:700;font-size:13px;color:" + (sel ? "var(--bg)" : (isToday ? "var(--accent)" : "var(--text)")) + ";";
@@ -990,16 +1143,16 @@
         return '<div data-action="select-day" data-i="' + i + '" style="' + ps + '"><span style="' + ls + '">' + short + '</span><span style="' + cs + '">' + (n ? n : "·") + '</span></div>';
       }).join("");
       var ids = dayMachineIds(state.selectedDay);
-      var label = (state.dayNames[state.selectedDay] || DAYS_FULL[state.selectedDay]).toUpperCase();
+      var label = (state.dayNames[state.selectedDay] || daysFull()[state.selectedDay]).toUpperCase();
       var rows = ids.length
         ? ids.map(function (id, idx) {
             var m = state.machines.find(function (x) { return x.id === id; });
             return m ? planRow(m, idx, ids.length, "move-day-up", "move-day-dn", "remove-day", iconStroke, iconAccent) : "";
           }).join("")
-        : planEmpty("REST DAY", "Nothing planned yet.<br>Add the machines you'll use on this day.");
+        : planEmpty(t("restDay"), t("restDayBody"));
       inner = '<div style="display:flex;gap:6px;">' + pills + '</div>' +
         '<div style="margin-top:24px;display:flex;align-items:center;gap:10px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(label) + '</span><span style="flex:1;height:1px;background:var(--border);"></span></div>' +
-        '<input id="input-day-name" value="' + esc(state.dayNames[state.selectedDay] || "") + '" placeholder="NAME THIS DAY · E.G. CHEST & ARMS" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />' +
+        '<input id="input-day-name" value="' + esc(state.dayNames[state.selectedDay] || "") + '" placeholder="' + esc(t("nameThisDay")) + '" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />' +
         rows;
     } else {
       var chips = state.routineLists.map(function (r) {
@@ -1007,11 +1160,11 @@
         var st = "display:flex;align-items:center;gap:6px;background:" + (sel ? "var(--text)" : "transparent") + ";color:" + (sel ? "var(--bg)" : "var(--muted)") + ";border:1px solid " + (sel ? "var(--text)" : "var(--border)") + ";font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:10px 14px;border-radius:7px;cursor:pointer;";
         return '<button data-action="select-routine" data-id="' + esc(r.id) + '" style="' + st + '">' + esc(r.name) + '<span style="font-size:10px;color:' + (sel ? "var(--bg)" : "var(--muted)") + ';">' + r.machineIds.length + '</span></button>';
       }).join("");
-      var newChip = '<button data-action="create-routine" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px dashed var(--border);color:var(--muted);font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:10px 14px;border-radius:7px;cursor:pointer;" class="hov-border-accent">＋ New</button>';
+      var newChip = '<button data-action="create-routine" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px dashed var(--border);color:var(--muted);font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:10px 14px;border-radius:7px;cursor:pointer;" class="hov-border-accent">' + esc(t("newRoutine")) + '</button>';
       var chipRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + chips + newChip + '</div>';
       var r = routineById(state.selectedRoutineId);
       if (!state.routineLists.length) {
-        inner = chipRow + planEmpty("NO ROUTINES YET", "Create a routine like &quot;Chest &amp; Biceps&quot;<br>and fill it with the machines you use.");
+        inner = chipRow + planEmpty(t("noRoutinesTitle"), t("noRoutinesBody"));
         addBtn = false;
       } else if (r) {
         var rIds = r.machineIds;
@@ -1020,10 +1173,10 @@
               var m = state.machines.find(function (x) { return x.id === id; });
               return m ? planRow(m, idx, rIds.length, "move-rt-up", "move-rt-dn", "remove-rt", iconStroke, iconAccent) : "";
             }).join("")
-          : planEmpty("EMPTY ROUTINE", "Add the machines this routine uses.");
+          : planEmpty(t("emptyRoutineTitle"), t("emptyRoutineBody"));
         inner = chipRow +
-          '<div style="margin-top:24px;display:flex;align-items:center;gap:10px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(r.name.toUpperCase()) + '</span><span style="flex:1;height:1px;background:var(--border);"></span><button data-action="delete-routine" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;" class="hov-accent-text">Delete</button></div>' +
-          '<input id="input-routine-name" value="' + esc(r.name) + '" placeholder="NAME THIS ROUTINE" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />' +
+          '<div style="margin-top:24px;display:flex;align-items:center;gap:10px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(r.name.toUpperCase()) + '</span><span style="flex:1;height:1px;background:var(--border);"></span><button data-action="delete-routine" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;" class="hov-accent-text">' + esc(t("deleteWord")) + '</button></div>' +
+          '<input id="input-routine-name" value="' + esc(r.name) + '" placeholder="' + esc(t("nameThisRoutine")) + '" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />' +
           rRows;
       } else {
         inner = chipRow;
@@ -1031,7 +1184,7 @@
       }
     }
     var bottom = addBtn
-      ? '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);"><button data-action="open-picker" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">＋ Add Machines</button></div>'
+      ? '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);"><button data-action="open-picker" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">' + esc(t("addMachines")) + '</button></div>'
       : "";
     return '<div style="flex:1;overflow:auto;padding:16px 22px 120px;">' + inner + '</div>' + bottom;
   }
@@ -1040,9 +1193,9 @@
   function viewPicker(iconStroke, iconAccent) {
     var week = state.orgMode === "week";
     var ctxName = week
-      ? (state.dayNames[state.selectedDay] || DAYS_FULL[state.selectedDay])
-      : ((routineById(state.selectedRoutineId) || {}).name || "Routine");
-    var ctxKind = week ? DAYS_FULL[state.selectedDay] : "this routine";
+      ? (state.dayNames[state.selectedDay] || daysFull()[state.selectedDay])
+      : ((routineById(state.selectedRoutineId) || {}).name || (state.lang === "es" ? "Rutina" : "Routine"));
+    var ctxKind = week ? daysFull()[state.selectedDay] : (state.lang === "es" ? "esta rutina" : "this routine");
     var checked = function (id) { return week ? inDay(state.selectedDay, id) : inRoutine(state.selectedRoutineId, id); };
     var count = week ? dayMachineIds(state.selectedDay).length : ((routineById(state.selectedRoutineId) || { machineIds: [] }).machineIds.length);
     var q = state.pickerSearch.trim().toLowerCase();
@@ -1063,18 +1216,18 @@
       '</div>';
     };
     var listHtml = groups.map(function (g) {
-      return '<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(g.group) + '</span><span style="font-size:10px;color:var(--muted);">' + g.items.length + '</span><span style="flex:1;height:1px;background:var(--border);"></span></div>' + g.items.map(row).join("");
+      return '<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(groupLabel(g.group)) + '</span><span style="font-size:10px;color:var(--muted);">' + g.items.length + '</span><span style="flex:1;height:1px;background:var(--border);"></span></div>' + g.items.map(row).join("");
     }).join("");
-    if (!groups.length) listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div>';
+    if (!groups.length) listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">' + esc(t("noMachinesFound")) + '</div>';
     return '<div class="screen" style="display:flex;flex-direction:column;">' +
       '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">' +
         '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
-        '<div style="min-width:0;"><div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Add to ' + esc(ctxKind) + '</div>' +
+        '<div style="min-width:0;"><div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">' + esc(t("addToLabel")) + ' ' + esc(ctxKind) + '</div>' +
         '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:26px;line-height:1;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(ctxName) + '</div></div>' +
       '</div>' +
-      '<div style="padding:6px 22px 0;flex-shrink:0;"><div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><input id="input-picker-search" value="' + esc(state.pickerSearch) + '" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" /></div></div>' +
+      '<div style="padding:6px 22px 0;flex-shrink:0;"><div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><input id="input-picker-search" value="' + esc(state.pickerSearch) + '" placeholder="' + esc(t("searchMachines")) + '" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" /></div></div>' +
       '<div style="flex:1;overflow:auto;padding:6px 22px 120px;">' + listHtml + '</div>' +
-      '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);"><button data-action="go-home" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Done · ' + count + ' selected</button></div>' +
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);"><button data-action="go-home" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">' + (state.lang === "es" ? "Listo · " + count + " elegidas" : "Done · " + count + " selected") + '</button></div>' +
     '</div>';
   }
 
@@ -1093,11 +1246,11 @@
     var cardio = isCardio(am);
     var amName = "", amGroup = "", amFav = false;
     var pr = "—", cardioStats = [];
-    var pbLabel = cardio ? "Longest Time" : "Personal Best";
+    var pbLabel = cardio ? t("longestTime") : t("personalBest");
     var pbUnit = cardio ? "min" : ul;
-    var chartTitle = cardio ? "Duration · Over Time" : "Max Weight · Over Time";
-    var setsTitle = cardio ? "Today's Session" : "Today's Sets";
-    var chartHtml = '<div style="background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:34px 14px;text-align:center;font-size:11px;letter-spacing:0.1em;color:var(--muted);">NO DATA YET — LOG ' + (cardio ? "A SESSION" : "A SET") + ' BELOW</div>';
+    var chartTitle = cardio ? t("durationOverTime") : t("maxWeightOverTime");
+    var setsTitle = cardio ? t("todaysSession") : t("todaysSets");
+    var chartHtml = '<div style="background:var(--surface);border:1px dashed var(--border);border-radius:6px;padding:34px 14px;text-align:center;font-size:11px;letter-spacing:0.1em;color:var(--muted);">' + (cardio ? t("noDataSession") : t("noDataSet")) + '</div>';
     var historyHtml = "";
 
     if (am) {
@@ -1134,27 +1287,27 @@
         if (sess.length) {
           var durs = sess.map(function (s) { return sumField(s, "duration"); });
           var farthestKm = Math.max.apply(null, sess.map(function (s) { return sumField(s, "distance"); }));
-          cardioStats = [{ label: "Longest", val: String(Math.max.apply(null, durs)), unit: "min" }];
+          cardioStats = [{ label: t("longest"), val: String(Math.max.apply(null, durs)), unit: "min" }];
           if (farthestKm > 0) {
             var bestPace = null;
             sess.forEach(function (s) {
               var d = sumField(s, "duration"), km = sumField(s, "distance");
               if (km > 0) { var p = d / dispDist(km); if (bestPace === null || p < bestPace) bestPace = p; }
             });
-            cardioStats.push({ label: "Farthest", val: String(dispDist(farthestKm)), unit: distUnit() });
-            cardioStats.push({ label: "Best Pace", val: fmtPace(bestPace), unit: "/" + distUnit() });
+            cardioStats.push({ label: t("farthest"), val: String(dispDist(farthestKm)), unit: distUnit() });
+            cardioStats.push({ label: t("bestPace"), val: fmtPace(bestPace), unit: "/" + distUnit() });
           } else {
-            cardioStats.push({ label: "Sessions", val: String(sess.length), unit: "" });
-            cardioStats.push({ label: "Calories", val: String(sess.reduce(function (a, s) { return a + sumField(s, "calories"); }, 0)), unit: "kcal" });
+            cardioStats.push({ label: t("sessionsWord"), val: String(sess.length), unit: "" });
+            cardioStats.push({ label: t("caloriesWord"), val: String(sess.reduce(function (a, s) { return a + sumField(s, "calories"); }, 0)), unit: "kcal" });
           }
         } else {
-          cardioStats = [{ label: "Longest", val: "—", unit: "min" }, { label: "Farthest", val: "—", unit: distUnit() }, { label: "Best Pace", val: "—", unit: "/" + distUnit() }];
+          cardioStats = [{ label: t("longest"), val: "—", unit: "min" }, { label: t("farthest"), val: "—", unit: distUnit() }, { label: t("bestPace"), val: "—", unit: "/" + distUnit() }];
         }
       }
       var hist = (state.logs[am.id] || []).slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 8);
       if (hist.length) {
         historyHtml = '<div style="margin-top:28px;display:flex;align-items:center;gap:10px;">' +
-            '<span style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">History</span>' +
+            '<span style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">' + esc(t("historyWord")) + '</span>' +
             '<span style="flex:1;height:1px;background:var(--border);"></span>' +
           '</div>' +
           hist.map(function (s) {
@@ -1162,15 +1315,15 @@
             if (cardio) {
               var dur = sumField(s, "duration"), dist = sumField(s, "distance"), cal = sumField(s, "calories");
               bigNum = String(dur); bigUnit = "min";
-              var parts = [s.sets.length + (s.sets.length === 1 ? " INTERVAL" : " INTERVALS")];
+              var parts = [s.sets.length + " " + (s.sets.length === 1 ? t("intUnit") : t("intsUnit"))];
               if (dist > 0) parts.push(dispDist(dist) + " " + distUnit());
               if (dist > 0 && dur > 0) parts.push(fmtPace(dur / dispDist(dist)) + " /" + distUnit());
-              if (cal > 0) parts.push(cal + " KCAL");
+              if (cal > 0) parts.push(cal + " " + t("kcalUnit"));
               summary = parts.join(" · ");
             } else {
               bigNum = String(dispW(Math.max.apply(null, s.sets.map(function (x) { return x.weight; }))));
               bigUnit = ul;
-              summary = s.sets.length + " SETS · " + s.sets.map(function (x) { return x.reps; }).join("/") + " REPS";
+              summary = s.sets.length + " " + t("setsUnit") + " · " + s.sets.map(function (x) { return x.reps; }).join("/") + " " + t("repsUnit");
             }
             return '<div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">' +
                 '<div>' +
@@ -1185,20 +1338,20 @@
 
     var draftRows = state.draft.map(function (st, i) {
       var label = String(i + 1).padStart(2, "0");
-      var entryLabel = cardio ? ("INTERVAL " + label) : ("SET " + label);
+      var entryLabel = cardio ? (t("intervalWord") + " " + label) : (t("setWord") + " " + label);
       var body;
       if (cardio) {
         body = '<div style="display:flex;gap:10px;">' +
-            '<div style="flex:1;">' + stepper("Duration · min", "dur-dn", "dur-up", i, (st.duration || 0)) + '</div>' +
-            '<div style="flex:1;">' + stepper("Distance · " + distUnit(), "dist-dn", "dist-up", i, dispDist(st.distance || 0)) + '</div>' +
+            '<div style="flex:1;">' + stepper(t("durationLabel"), "dur-dn", "dur-up", i, (st.duration || 0)) + '</div>' +
+            '<div style="flex:1;">' + stepper(t("distanceLabel") + " · " + distUnit(), "dist-dn", "dist-up", i, dispDist(st.distance || 0)) + '</div>' +
           '</div>' +
-          '<div style="margin-top:10px;">' + stepper("Calories · kcal", "cal-dn", "cal-up", i, (st.calories || 0)) + '</div>';
+          '<div style="margin-top:10px;">' + stepper(t("caloriesLabel"), "cal-dn", "cal-up", i, (st.calories || 0)) + '</div>';
         var dDist = dispDist(st.distance || 0), dDur = (st.duration || 0);
         if (dDist > 0 && dDur > 0) {
           var pace = fmtPace(dDur / dDist) + " /" + distUnit();
           var speed = (Math.round((dDist / (dDur / 60)) * 10) / 10) + " " + distUnit() + "/h";
           body += '<div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;">' +
-              '<span style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">Pace</span>' +
+              '<span style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">' + esc(t("paceLabel")) + '</span>' +
               '<span style="font-family:\'Doto\',monospace;font-weight:700;font-size:17px;letter-spacing:0.04em;color:var(--accent);">' + esc(pace) + '</span>' +
               '<span style="flex:1;"></span>' +
               '<span style="font-size:11px;letter-spacing:0.06em;color:var(--muted);">' + esc(speed) + '</span>' +
@@ -1206,14 +1359,14 @@
         }
       } else {
         body = '<div style="display:flex;gap:10px;">' +
-            '<div style="flex:1;">' + stepper("Reps", "rep-dn", "rep-up", i, st.reps) + '</div>' +
-            '<div style="flex:1.4;">' + stepper("Weight · " + esc(ul), "w-dn", "w-up", i, dispW(st.weight)) + '</div>' +
+            '<div style="flex:1;">' + stepper(t("repsLabel"), "rep-dn", "rep-up", i, st.reps) + '</div>' +
+            '<div style="flex:1.4;">' + stepper(t("weightLabel") + " · " + esc(ul), "w-dn", "w-up", i, dispW(st.weight)) + '</div>' +
           '</div>';
       }
       return '<div style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 13px;">' +
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">' +
             '<span style="font-family:\'Doto\',monospace;font-weight:700;font-size:15px;letter-spacing:0.1em;color:var(--text);">' + entryLabel + '</span>' +
-            '<button data-action="remove-set" data-i="' + i + '" class="hov-accent-text" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:11px;letter-spacing:0.1em;">REMOVE</button>' +
+            '<button data-action="remove-set" data-i="' + i + '" class="hov-accent-text" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:11px;letter-spacing:0.1em;">' + esc(t("removeWord")) + '</button>' +
           '</div>' + body + '</div>';
     }).join("");
 
@@ -1221,27 +1374,27 @@
     var assignHtml = "";
     if (am) {
       if (state.orgMode === "week") {
-        var dayToggles = DAYS.map(function (short, i) {
+        var dayToggles = daysShort().map(function (short, i) {
           var on = inDay(i, am.id);
           var st = "flex:1;min-width:0;text-align:center;padding:9px 0;border-radius:6px;cursor:pointer;font-family:'Doto',monospace;font-weight:700;font-size:12px;background:" + (on ? "var(--accent)" : "transparent") + ";color:" + (on ? "#fff" : "var(--muted)") + ";border:1px solid " + (on ? "var(--accent)" : "var(--border)") + ";";
           return '<div data-action="toggle-day" data-i="' + i + '" style="' + st + '">' + short + '</div>';
         }).join("");
-        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Week</div><div style="display:flex;gap:5px;">' + dayToggles + '</div></div>';
+        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">' + esc(t("inYourWeek")) + '</div><div style="display:flex;gap:5px;">' + dayToggles + '</div></div>';
       } else if (state.routineLists.length) {
         var rtToggles = state.routineLists.map(function (r) {
           var on = inRoutine(r.id, am.id);
           var st = "background:" + (on ? "var(--accent)" : "transparent") + ";color:" + (on ? "#fff" : "var(--muted)") + ";border:1px solid " + (on ? "var(--accent)" : "var(--border)") + ";font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:9px 13px;border-radius:7px;cursor:pointer;";
           return '<div data-action="toggle-rt-machine" data-id="' + esc(r.id) + '" style="' + st + '">' + esc(r.name) + '</div>';
         }).join("");
-        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Routines</div><div style="display:flex;gap:6px;flex-wrap:wrap;">' + rtToggles + '</div></div>';
+        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">' + esc(t("inYourRoutines")) + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;">' + rtToggles + '</div></div>';
       } else {
-        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Routines</div><div style="font-size:11px;color:var(--muted);">No routines yet — create one in the Plan tab.</div></div>';
+        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">' + esc(t("inYourRoutines")) + '</div><div style="font-size:11px;color:var(--muted);">' + esc(t("noRoutinesShort")) + '</div></div>';
       }
     }
 
     var saveBar = state.draft.length > 0
-      ? '<button data-action="save-session" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Save Session ✓</button>'
-      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">' + (cardio ? "Add an interval to save" : "Add a set to save") + '</div>';
+      ? '<button data-action="save-session" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">' + esc(t("saveSession")) + '</button>'
+      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">' + (cardio ? t("addIntervalToSave") : t("addSetToSave")) + '</div>';
 
     // HERO — strength: single personal best · cardio: three-metric strip (time / distance / pace)
     var heroHtml = cardio
@@ -1266,7 +1419,7 @@
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:4px 22px 120px;">' +
-        '<div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(amGroup) + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(groupLabel(amGroup)) + '</div>' +
         '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:18px;">' + esc(amName) + '</div>' +
         assignHtml +
         heroHtml +
@@ -1280,8 +1433,8 @@
         '</div>' +
         draftRows +
         '<div style="display:flex;gap:10px;margin-top:12px;">' +
-          '<button data-action="add-set" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">＋ ' + (cardio ? "Add Interval" : "Add Set") + '</button>' +
-          '<button data-action="dup-set" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">⎘ Duplicate Last</button>' +
+          '<button data-action="add-set" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">' + esc(cardio ? t("addInterval") : t("addSet")) + '</button>' +
+          '<button data-action="dup-set" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">' + esc(t("duplicateLast")) + '</button>' +
         '</div>' +
         historyHtml +
       '</div>' +
@@ -1296,32 +1449,32 @@
       var dot = active
         ? '<span style="width:8px;height:8px;border-radius:50%;background:var(--accent);"></span>'
         : '<span style="width:8px;height:8px;border-radius:50%;border:1px solid var(--border);"></span>';
-      return '<button data-action="pick-group" data-g="' + esc(g) + '" style="display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;padding:10px 14px;border-radius:4px;cursor:pointer;">' + dot + esc(g) + '</button>';
+      return '<button data-action="pick-group" data-g="' + esc(g) + '" style="display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;letter-spacing:0.06em;text-transform:uppercase;padding:10px 14px;border-radius:4px;cursor:pointer;">' + dot + esc(groupLabel(g)) + '</button>';
     }).join("");
 
     var photo = state.addPhoto
       ? '<img src="' + esc(state.addPhoto) + '" style="width:100%;height:200px;object-fit:cover;border:1px solid var(--border);border-radius:6px;" />'
       : '<div style="width:100%;height:200px;border:1px dashed var(--border);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);">' +
           '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.6"></circle><path d="M21 15l-5-5L5 21"></path></svg>' +
-          '<span style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;">Tap to choose from gallery</span>' +
+          '<span style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;">' + esc(t("tapGallery")) + '</span>' +
         '</div>';
 
     var saveBar = state.addName.trim().length > 0
-      ? '<button data-action="save-machine" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Save Machine ✓</button>'
-      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">Enter a name to save</div>';
+      ? '<button data-action="save-machine" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">' + esc(t("saveMachine")) + '</button>'
+      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">' + esc(t("enterNameToSave")) + '</div>';
 
     return '<div class="screen" style="display:flex;flex-direction:column;">' +
       '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">' +
         '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
-        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:30px;color:var(--text);">NEW MACHINE</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:30px;color:var(--text);">' + esc(t("newMachineTitle")) + '</div>' +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:8px 22px 120px;">' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">Name</div>' +
-        '<input id="input-addname" value="' + esc(state.addName) + '" placeholder="e.g. Smith Machine" autocomplete="off" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;margin-bottom:24px;" />' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Muscle Group</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;">' + esc(t("nameLabel")) + '</div>' +
+        '<input id="input-addname" value="' + esc(state.addName) + '" placeholder="' + esc(t("namePh")) + '" autocomplete="off" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:16px;padding:14px 16px;outline:none;border-radius:4px;margin-bottom:24px;" />' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">' + esc(t("muscleGroup")) + '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:9px;margin-bottom:26px;">' + chips + '</div>' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Photo</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">' + esc(t("photoLabel")) + '</div>' +
         '<label style="display:block;cursor:pointer;">' +
           '<input id="input-photo" type="file" accept="image/*" style="display:none;" />' + photo +
         '</label>' +
@@ -1344,6 +1497,13 @@
         : "background:transparent;color:var(--muted);border:1px solid var(--border);";
       return '<button data-action="' + action + '" style="flex:1;' + st + 'font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">' + label + '</button>';
     };
+    var langSeg = function (label, l) {
+      var active = state.lang === l;
+      var st = active
+        ? "background:var(--accent);color:#fff;border:1px solid var(--accent);"
+        : "background:transparent;color:var(--muted);border:1px solid var(--border);";
+      return '<button data-action="set-lang" data-l="' + l + '" style="flex:1;' + st + 'font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">' + label + '</button>';
+    };
     var uname = (state.user && state.user.name) || "?";
     var uemail = (state.user && state.user.email) || "";
     var initial = uname.charAt(0).toUpperCase();
@@ -1356,34 +1516,36 @@
       '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">' +
         '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
-        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:32px;color:var(--text);">SETTINGS</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:32px;color:var(--text);">' + esc(t("settingsTitle")) + '</div>' +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:18px 22px 40px;">' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Appearance</div>' +
-        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + seg("Light", "theme-light", !isDark) + seg("Dark", "theme-dark", isDark) + '</div>' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Weight Unit</div>' +
-        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg("Kilograms", "unit-kg", ul === "kg") + unitSeg("Pounds", "unit-lb", ul === "lb") + '</div>' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Plan Organization</div>' +
-        '<div style="font-size:10px;letter-spacing:0.02em;line-height:1.5;color:var(--muted);margin-bottom:11px;">' + (state.orgMode === "week" ? "Machines grouped by weekday in the Plan tab." : "Machines grouped into named routine lists.") + '</div>' +
-        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg("By Day", "org-week", state.orgMode === "week") + unitSeg("Routines", "org-routines", state.orgMode === "routines") + '</div>' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Data &amp; Backup</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">' + esc(t("appearance")) + '</div>' +
+        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + seg(t("lightTheme"), "theme-light", !isDark) + seg(t("darkTheme"), "theme-dark", isDark) + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">' + esc(t("weightUnit")) + '</div>' +
+        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg(t("kg"), "unit-kg", ul === "kg") + unitSeg(t("lb"), "unit-lb", ul === "lb") + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">' + esc(t("planOrganization")) + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.02em;line-height:1.5;color:var(--muted);margin-bottom:11px;">' + (state.orgMode === "week" ? t("orgHintWeek") : t("orgHintRoutines")) + '</div>' +
+        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg(t("byDay"), "org-week", state.orgMode === "week") + unitSeg(t("routines"), "org-routines", state.orgMode === "routines") + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">' + esc(t("languageSection")) + '</div>' +
+        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + langSeg("English", "en") + langSeg("Español", "es") + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">' + esc(t("dataBackup")) + '</div>' +
         '<div style="display:flex;gap:10px;">' +
-          '<button data-action="export-backup" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">⤓ Export</button>' +
-          '<label class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;text-align:center;display:block;">⤒ Restore<input id="input-restore" type="file" accept="application/json,.json" style="display:none;" /></label>' +
+          '<button data-action="export-backup" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">' + esc(t("exportBtn")) + '</button>' +
+          '<label class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;text-align:center;display:block;">' + esc(t("restoreBtn")) + '<input id="input-restore" type="file" accept="application/json,.json" style="display:none;" /></label>' +
         '</div>' +
-        '<div style="margin-top:9px;font-size:10px;letter-spacing:0.1em;color:var(--muted);line-height:1.5;">On iPhone, Export opens the share sheet — choose <b style="color:var(--text);font-weight:700;">Save to Files → iCloud Drive</b> and Apple syncs it across your devices. Restore loads a backup back. Elsewhere, Export just downloads the .json.</div>' +
+        '<div style="margin-top:9px;font-size:10px;letter-spacing:0.1em;color:var(--muted);line-height:1.5;">' + t("backupHint") + '</div>' +
         msg +
         '<div style="height:30px;"></div>' +
-        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Account</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">' + esc(t("account")) + '</div>' +
         '<div style="display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:15px;margin-bottom:14px;">' +
           '<div style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:\'Doto\',monospace;font-weight:900;font-size:20px;color:#fff;">' + esc(initial) + '</div>' +
           '<div style="min-width:0;"><div style="font-size:15px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(uname) + '</div><div style="font-size:10px;letter-spacing:0.06em;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(uemail) + '</div></div>' +
         '</div>' +
         (passkeysAvailable()
-          ? '<button data-action="add-passkey" class="hov-accent" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:1px solid var(--border);color:var(--text);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">' + passkeyIcon() + 'Add a passkey</button>'
+          ? '<button data-action="add-passkey" class="hov-accent" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:1px solid var(--border);color:var(--text);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">' + passkeyIcon() + esc(t("addPasskey")) + '</button>'
           : '') +
-        '<button data-action="logout" class="hov-border-accent" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--accent);font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Log Out</button>' +
-        '<button data-action="delete-account" class="hov-bright" style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Delete Account</button>' +
+        '<button data-action="logout" class="hov-border-accent" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--accent);font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">' + esc(t("logOut")) + '</button>' +
+        '<button data-action="delete-account" class="hov-bright" style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">' + esc(t("deleteAccountBtn")) + '</button>' +
         '<div style="text-align:center;margin-top:34px;font-family:\'Doto\',monospace;font-weight:700;font-size:13px;letter-spacing:0.3em;color:var(--muted);">FORGELIFT · v1.0</div>' +
       '</div></div>';
   }
@@ -1396,6 +1558,8 @@
     "add-passkey": addPasskey,
     "ob-mode": function (el) { setObMode(el.getAttribute("data-m")); },
     "ob-unit": function (el) { setObUnit(el.getAttribute("data-u")); },
+    "ob-lang": function (el) { setLang(el.getAttribute("data-l")); },
+    "set-lang": function (el) { setLang(el.getAttribute("data-l")); },
     "finish-onboarding": finishOnboarding,
     "open-settings": openSettings,
     "open-add": openAdd,
