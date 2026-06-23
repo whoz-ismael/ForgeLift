@@ -18,6 +18,19 @@ Email/password auth works immediately. By default Supabase asks new users to con
 
 > Make sure the project's **Site URL** (*Authentication → URL Configuration*) points to the deployed Cloudflare domain, so the confirmation link sends users back to the live app.
 
+A branded HTML template for the confirmation email lives at `supabase/templates/confirm-signup.html` — paste it into *Authentication → Email Templates → Confirm sign up*.
+
+### Passkeys (passwordless)
+
+ForgeLift supports **passkeys (WebAuthn)** — sign in with Face ID / Touch ID / a device PIN / a security key, no password. It's wired up in the app; enable it once in Supabase:
+
+1. *Authentication → Passkeys* → **Enable Passkey authentication**.
+2. Set the **Relying Party ID** to your bare domain (e.g. `forgelift.pages.dev` or your custom domain — no scheme or path) and add the full origin (e.g. `https://forgelift.pages.dev`) to **Relying Party Origins**.
+
+> ⚠️ Passkeys are cryptographically bound to the Relying Party ID. **Pick the final domain before users start enrolling** — changing it later invalidates every existing passkey.
+
+How it works in the app: sign in with email once, then **Settings → Add a passkey**. After that the login screen shows **"Sign in with a passkey"** for a passwordless return. The passkey button only appears on devices/browsers that support WebAuthn. (Passkey support in `supabase-js` is currently marked experimental.)
+
 ## The app
 
 | File | What it is |
@@ -32,7 +45,7 @@ Email/password auth works immediately. By default Supabase asks new users to con
 
 ## Features
 
-- **Login** — real authentication via Supabase Auth: **email + password** (sign up / sign in), with a persistent session.
+- **Login** — real authentication via Supabase Auth: **email + password** (sign up / sign in) plus **passkeys** (WebAuthn / biometrics), with a persistent session.
 - **Machines** grouped by muscle group plus a **Cardio** category, with favorites and search. A broad starter catalog (chest, back, legs, shoulders, arms, core and cardio).
 - **Per-machine line illustrations** (dot-matrix, theme-aware, generated in JS) — including cardio icons (treadmill, bike, rower, stairs…).
 - **Context-aware logging** — strength machines use +/− steppers for reps & weight; **cardio machines** (treadmill, bike, elliptical, rower…) drop reps/weight and log **duration, distance & calories** instead. Distance follows your unit (km / mi). "Duplicate last", save session.

@@ -185,6 +185,38 @@
     setState({ authMode: state.authMode === "signin" ? "signup" : "signin", loginError: "", loginNotice: "" });
   }
 
+  // ── passkeys (WebAuthn) ──
+  function passkeysAvailable() {
+    return !!(window.ForgeLiftAuth && window.ForgeLiftAuth.passkeysSupported && window.PublicKeyCredential);
+  }
+  function passkeyError(err) {
+    var name = (err && err.name) || "";
+    var m = (err && err.message ? err.message : "").toLowerCase();
+    if (name === "NotAllowedError" || m.indexOf("cancel") >= 0 || m.indexOf("not allowed") >= 0) return "PASSKEY CANCELLED";
+    if (m.indexOf("no ") >= 0 && m.indexOf("passkey") >= 0) return "NO PASSKEY ON THIS DEVICE — SIGN IN WITH EMAIL FIRST";
+    if (m.indexOf("not enabled") >= 0 || m.indexOf("disabled") >= 0) return "PASSKEYS NOT ENABLED FOR THIS PROJECT";
+    return "PASSKEY SIGN-IN FAILED";
+  }
+  function authPasskey() {
+    if (state.busy) return;
+    setState({ busy: true, loginError: "", loginNotice: "" });
+    window.ForgeLiftAuth.signInPasskey().then(function (res) {
+      if (res && res.error) { setState({ busy: false, loginError: passkeyError(res.error) }); return; }
+      // Success → onChange delivers the session and navigates home.
+    }).catch(function (e) {
+      setState({ busy: false, loginError: passkeyError(e) });
+    });
+  }
+  function addPasskey() {
+    setState({ settingsMsg: "ADDING PASSKEY…", settingsMsgOk: true });
+    window.ForgeLiftAuth.registerPasskey().then(function (res) {
+      if (res && res.error) { setState({ settingsMsg: passkeyError(res.error), settingsMsgOk: false }); return; }
+      setState({ settingsMsg: "PASSKEY ADDED ✓ — USE IT NEXT TIME YOU SIGN IN", settingsMsgOk: true });
+    }).catch(function (e) {
+      setState({ settingsMsg: passkeyError(e), settingsMsgOk: false });
+    });
+  }
+
   function logout() {
     // Reset the UI immediately; onChange will also fire from signOut().
     setState({
@@ -589,12 +621,28 @@
 
         '<button data-action="auth-email" class="hov-bright" ' + (state.busy ? "disabled " : "") + 'style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.18em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';">' + submitLabel + '</button>' +
 
+        (passkeysAvailable()
+          ? '<button data-action="auth-passkey" class="hov-border-accent" ' + (state.busy ? "disabled " : "") + 'style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:1px solid var(--border);color:var(--text);font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:' + (state.busy ? "default" : "pointer") + ';">' + passkeyIcon() + 'Sign in with a passkey</button>'
+          : '') +
+
         '<div style="text-align:center;margin-top:16px;font-size:11px;letter-spacing:0.04em;color:var(--muted);">' +
           (signup ? "Already have an account? " : "New here? ") +
           '<a data-action="auth-toggle" style="color:var(--text);cursor:pointer;text-decoration:underline;text-underline-offset:3px;">' +
           (signup ? "Sign in" : "Create one") + '</a>' +
         '</div>' +
       '</div></div>';
+  }
+
+  // Small monochrome fingerprint mark for the passkey buttons.
+  function passkeyIcon() {
+    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">' +
+      '<path d="M12 10v3a8 8 0 0 1-1.5 4.7"/>' +
+      '<path d="M8.5 8.6a5 5 0 0 1 7.5 4.3v.6"/>' +
+      '<path d="M5.5 7a8 8 0 0 1 12.9 6"/>' +
+      '<path d="M8 20.5a11 11 0 0 0 1.5-2.5"/>' +
+      '<path d="M16 18a13 13 0 0 0 .9-5"/>' +
+      '<path d="M12 13v.5a13 13 0 0 1-1.2 5.5"/>' +
+      '</svg>';
   }
 
   // ── HOME ──
@@ -915,6 +963,9 @@
           '<div style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:\'Doto\',monospace;font-weight:900;font-size:20px;color:#fff;">' + esc(initial) + '</div>' +
           '<div style="min-width:0;"><div style="font-size:15px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(uname) + '</div><div style="font-size:10px;letter-spacing:0.06em;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(uemail) + '</div></div>' +
         '</div>' +
+        (passkeysAvailable()
+          ? '<button data-action="add-passkey" class="hov-accent" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:1px solid var(--border);color:var(--text);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">' + passkeyIcon() + 'Add a passkey</button>'
+          : '') +
         '<button data-action="logout" class="hov-border-accent" style="width:100%;background:transparent;border:1px solid var(--border);color:var(--accent);font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Log Out</button>' +
         '<button data-action="delete-account" class="hov-bright" style="width:100%;margin-top:10px;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Delete Account</button>' +
         '<div style="text-align:center;margin-top:34px;font-family:\'Doto\',monospace;font-weight:700;font-size:13px;letter-spacing:0.3em;color:var(--muted);">FORGELIFT · v1.0</div>' +
@@ -925,6 +976,8 @@
   var ACTIONS = {
     "auth-email": submitEmail,
     "auth-toggle": toggleAuthMode,
+    "auth-passkey": authPasskey,
+    "add-passkey": addPasskey,
     "open-settings": openSettings,
     "open-add": openAdd,
     "go-home": goHome,

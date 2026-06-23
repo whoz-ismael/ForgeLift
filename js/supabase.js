@@ -1,9 +1,10 @@
 /* ForgeLift — Supabase auth + data layer.
  *
- * Real authentication via Supabase Auth (email + password). Each signed-in
- * user owns one row in the `profiles` table; Row Level Security ties every row
- * to auth.uid(), so the user's JWT is what grants access — the browser reads
- * and writes only its own data. See supabase/migrations/.
+ * Real authentication via Supabase Auth: email + password, plus passwordless
+ * passkeys (WebAuthn). Each signed-in user owns one row in the `profiles`
+ * table; Row Level Security ties every row to auth.uid(), so the user's JWT is
+ * what grants access — the browser reads and writes only its own data.
+ * See supabase/migrations/.
  *
  * Loads before js/app.js, which uses window.ForgeLiftAuth. */
 (function () {
@@ -22,11 +23,20 @@
   }
 
   var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    auth: {
+      persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+      // Opt in to passkey (WebAuthn) support — experimental in supabase-js.
+      experimental: { passkey: true },
+    },
   });
+
+  // WebAuthn is only available in secure contexts with the right browser API.
+  var passkeysSupported = typeof window.PublicKeyCredential !== "undefined" &&
+    typeof client.auth.signInWithPasskey === "function";
 
   window.ForgeLiftAuth = {
     ready: true,
+    passkeysSupported: passkeysSupported,
 
     // Fires on first load and on sign in / out.
     onChange: function (cb) {
@@ -39,6 +49,12 @@
     signUpEmail:  function (email, password) { return client.auth.signUp({ email: email, password: password }); },
     signInEmail:  function (email, password) { return client.auth.signInWithPassword({ email: email, password: password }); },
     signOut:      function () { return client.auth.signOut(); },
+
+    // Passkeys (WebAuthn). Sign-in is passwordless and discoverable — the
+    // authenticator resolves the account, so no email is needed up front.
+    // Registering one requires being signed in already (e.g. from Settings).
+    signInPasskey:   function () { return client.auth.signInWithPasskey(); },
+    registerPasskey: function () { return client.auth.registerPasskey(); },
 
     // Data — RLS scopes every query to the current user automatically.
     loadProfile: function () {

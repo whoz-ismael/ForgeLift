@@ -40,13 +40,18 @@ const auth = {
   profiles: {},     // userId -> profile data
   session: null,    // { user: { id, email, user_metadata } }
   listeners: [],
+  passkeys: [],     // userIds that have registered a passkey
   idSeq: 1,
 };
 function emit() { auth.listeners.forEach((cb) => cb(auth.session)); }
 function setSession(user) { auth.session = user ? { user } : null; setTimeout(emit, 0); }
 
+// jsdom has no WebAuthn; presence of this is what gates the passkey UI.
+window.PublicKeyCredential = function () {};
+
 window.ForgeLiftAuth = {
   ready: true,
+  passkeysSupported: true,
   onChange(cb) { auth.listeners.push(cb); setTimeout(() => cb(auth.session), 0); },
   getSession() { return Promise.resolve(auth.session); },
   signUpEmail(email, password) {
@@ -71,6 +76,23 @@ window.ForgeLiftAuth = {
     });
   },
   signOut() { setSession(null); return Promise.resolve({ error: null }); },
+  registerPasskey() {
+    return Promise.resolve().then(() => {
+      if (!auth.session) return { data: null, error: { message: "not authenticated" } };
+      auth.passkeys.push(auth.session.user.id);
+      return { data: { id: "pk-" + auth.passkeys.length }, error: null };
+    });
+  },
+  signInPasskey() {
+    return Promise.resolve().then(() => {
+      if (!auth.passkeys.length) return { data: null, error: { name: "NotAllowedError", message: "no passkey" } };
+      // Discoverable credential: the authenticator resolves the account.
+      const uid = auth.passkeys[auth.passkeys.length - 1];
+      const email = Object.keys(auth.users).find((e) => auth.users[e].id === uid);
+      setSession({ id: uid, email, user_metadata: {} });
+      return { data: { session: auth.session }, error: null };
+    });
+  },
   loadProfile() {
     return Promise.resolve().then(() => (auth.session ? (auth.profiles[auth.session.user.id] || null) : null));
   },
@@ -228,6 +250,19 @@ function check(name, cond) {
   check("stays on login screen", !!$("#input-email"));
   await signIn("demo@forgelift.test", "secret1");
   check("correct password logs back in", /Smith Machine/.test($("#app").textContent));
+
+  console.log("PASSKEYS");
+  click('[data-action="open-settings"]');
+  check("settings offers 'Add a passkey'", !!$('[data-action="add-passkey"]'));
+  click('[data-action="add-passkey"]');
+  await wait(20);
+  check("passkey registered", /PASSKEY ADDED/.test($("#app").textContent) && auth.passkeys.length === 1);
+  click('[data-action="logout"]');
+  await wait(20);
+  check("login offers passkey sign-in", !!$('[data-action="auth-passkey"]'));
+  click('[data-action="auth-passkey"]');
+  await wait(40);
+  check("passkey sign-in returns to the right account", /Smith Machine/.test($("#app").textContent));
 
   console.log("BACKUP / RESTORE / DELETE");
   const backup = { app: "ForgeLift", version: 1, data: clone(currentProfile()) };
