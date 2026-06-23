@@ -464,6 +464,12 @@
   function distUnit() { return state.unit === "lb" ? "mi" : "km"; }
   function dispDist(km) { return Math.round((state.unit === "lb" ? km / MI : km) * 100) / 100; }
   function sumField(session, f) { return session.sets.reduce(function (a, x) { return a + (x[f] || 0); }, 0); }
+  function fmtPace(minPerUnit) {
+    if (!isFinite(minPerUnit) || minPerUnit <= 0) return "—";
+    var m = Math.floor(minPerUnit), s = Math.round((minPerUnit - m) * 60);
+    if (s === 60) { m += 1; s = 0; }
+    return m + ":" + String(s).padStart(2, "0");
+  }
   function fmtDate(iso) {
     try {
       return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
@@ -742,7 +748,7 @@
     var am = state.machines.find(function (m) { return m.id === state.activeId; }) || null;
     var cardio = isCardio(am);
     var amName = "", amGroup = "", amFav = false;
-    var pr = "—";
+    var pr = "—", cardioStats = [];
     var pbLabel = cardio ? "Longest Time" : "Personal Best";
     var pbUnit = cardio ? "min" : ul;
     var chartTitle = cardio ? "Duration · Over Time" : "Max Weight · Over Time";
@@ -780,6 +786,27 @@
             '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:2px;"><span>' + esc(fmtDate(sr[0].date)) + '</span><span>' + esc(fmtDate(sr[sr.length - 1].date)) + '</span></div>' +
           '</div>';
       }
+      if (cardio) {
+        if (sess.length) {
+          var durs = sess.map(function (s) { return sumField(s, "duration"); });
+          var farthestKm = Math.max.apply(null, sess.map(function (s) { return sumField(s, "distance"); }));
+          cardioStats = [{ label: "Longest", val: String(Math.max.apply(null, durs)), unit: "min" }];
+          if (farthestKm > 0) {
+            var bestPace = null;
+            sess.forEach(function (s) {
+              var d = sumField(s, "duration"), km = sumField(s, "distance");
+              if (km > 0) { var p = d / dispDist(km); if (bestPace === null || p < bestPace) bestPace = p; }
+            });
+            cardioStats.push({ label: "Farthest", val: String(dispDist(farthestKm)), unit: distUnit() });
+            cardioStats.push({ label: "Best Pace", val: fmtPace(bestPace), unit: "/" + distUnit() });
+          } else {
+            cardioStats.push({ label: "Sessions", val: String(sess.length), unit: "" });
+            cardioStats.push({ label: "Calories", val: String(sess.reduce(function (a, s) { return a + sumField(s, "calories"); }, 0)), unit: "kcal" });
+          }
+        } else {
+          cardioStats = [{ label: "Longest", val: "—", unit: "min" }, { label: "Farthest", val: "—", unit: distUnit() }, { label: "Best Pace", val: "—", unit: "/" + distUnit() }];
+        }
+      }
       var hist = (state.logs[am.id] || []).slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 8);
       if (hist.length) {
         historyHtml = '<div style="margin-top:28px;display:flex;align-items:center;gap:10px;">' +
@@ -793,6 +820,7 @@
               bigNum = String(dur); bigUnit = "min";
               var parts = [s.sets.length + (s.sets.length === 1 ? " INTERVAL" : " INTERVALS")];
               if (dist > 0) parts.push(dispDist(dist) + " " + distUnit());
+              if (dist > 0 && dur > 0) parts.push(fmtPace(dur / dispDist(dist)) + " /" + distUnit());
               if (cal > 0) parts.push(cal + " KCAL");
               summary = parts.join(" · ");
             } else {
@@ -821,6 +849,17 @@
             '<div style="flex:1;">' + stepper("Distance · " + distUnit(), "dist-dn", "dist-up", i, dispDist(st.distance || 0)) + '</div>' +
           '</div>' +
           '<div style="margin-top:10px;">' + stepper("Calories · kcal", "cal-dn", "cal-up", i, (st.calories || 0)) + '</div>';
+        var dDist = dispDist(st.distance || 0), dDur = (st.duration || 0);
+        if (dDist > 0 && dDur > 0) {
+          var pace = fmtPace(dDur / dDist) + " /" + distUnit();
+          var speed = (Math.round((dDist / (dDur / 60)) * 10) / 10) + " " + distUnit() + "/h";
+          body += '<div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;">' +
+              '<span style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">Pace</span>' +
+              '<span style="font-family:\'Doto\',monospace;font-weight:700;font-size:17px;letter-spacing:0.04em;color:var(--accent);">' + esc(pace) + '</span>' +
+              '<span style="flex:1;"></span>' +
+              '<span style="font-size:11px;letter-spacing:0.06em;color:var(--muted);">' + esc(speed) + '</span>' +
+            '</div>';
+        }
       } else {
         body = '<div style="display:flex;gap:10px;">' +
             '<div style="flex:1;">' + stepper("Reps", "rep-dn", "rep-up", i, st.reps) + '</div>' +
@@ -842,6 +881,23 @@
       ? '<button data-action="save-session" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Save Session ✓</button>'
       : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">' + (cardio ? "Add an interval to save" : "Add a set to save") + '</div>';
 
+    // HERO — strength: single personal best · cardio: three-metric strip (time / distance / pace)
+    var heroHtml = cardio
+      ? '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden;">' +
+          cardioStats.map(function (cs) {
+            return '<div style="background:var(--bg);padding:14px 13px;">' +
+                '<div style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;white-space:nowrap;">' + esc(cs.label) + '</div>' +
+                '<div style="display:flex;align-items:baseline;gap:3px;"><span style="font-family:\'Doto\',monospace;font-weight:900;font-size:32px;line-height:0.8;color:var(--accent);">' + esc(cs.val) + '</span><span style="font-size:10px;color:var(--muted);">' + esc(cs.unit) + '</span></div>' +
+              '</div>';
+          }).join("") +
+        '</div>'
+      : '<div style="display:flex;align-items:flex-end;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--border);">' +
+          '<div>' +
+            '<div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(pbLabel) + '</div>' +
+            '<div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:\'Doto\',monospace;font-weight:900;font-size:54px;line-height:0.8;color:var(--accent);">' + esc(pr) + '</span><span style="font-size:14px;color:var(--muted);">' + esc(pbUnit) + '</span></div>' +
+          '</div>' +
+        '</div>';
+
     return '<div class="screen" style="display:flex;flex-direction:column;">' +
       '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">' +
         '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
@@ -851,12 +907,7 @@
       '<div style="flex:1;overflow:auto;padding:4px 22px 120px;">' +
         '<div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(amGroup) + '</div>' +
         '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:20px;">' + esc(amName) + '</div>' +
-        '<div style="display:flex;align-items:flex-end;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--border);">' +
-          '<div>' +
-            '<div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(pbLabel) + '</div>' +
-            '<div style="display:flex;align-items:baseline;gap:6px;"><span style="font-family:\'Doto\',monospace;font-weight:900;font-size:54px;line-height:0.8;color:var(--accent);">' + esc(pr) + '</span><span style="font-size:14px;color:var(--muted);">' + esc(pbUnit) + '</span></div>' +
-          '</div>' +
-        '</div>' +
+        heroHtml +
         '<div style="margin-top:22px;">' +
           '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:12px;">' + esc(chartTitle) + '</div>' +
           chartHtml +

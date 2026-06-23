@@ -207,10 +207,13 @@ function check(name, cond) {
   click('[data-action="go-home"]');
   const tid = idByName("Treadmill");
   click('[data-action="open-machine"][data-id="' + tid + '"]');
-  check("cardio shows Longest Time", /Longest Time/.test($("#app").textContent) && !/Personal Best/.test($("#app").textContent));
+  check("cardio hero strip (Longest / Best Pace), not Personal Best", /Longest/.test($("#app").textContent) && /Best Pace/.test($("#app").textContent) && !/Personal Best/.test($("#app").textContent));
   click('[data-action="add-set"]');
   check("cardio adds an Interval", /INTERVAL 01/.test($("#app").textContent));
   click('[data-action="dur-up"]');
+  click('[data-action="dist-up"]');
+  click('[data-action="cal-up"]');
+  check("cardio shows live pace + speed readout", /km\/h/.test($("#app").textContent));
   click('[data-action="save-session"]');
   await wait(20);
   check("cardio session saved", !/INTERVAL 01/.test($("#app").textContent));
