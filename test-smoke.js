@@ -130,12 +130,20 @@ function modeIsSignup() {
 async function ensureMode(signup) {
   if (modeIsSignup() !== signup) click('[data-action="auth-toggle"]');
 }
+async function completeOnboarding(mode, unit) {
+  if (!/LET'S SET/.test($("#app").textContent)) return; // returning user — already onboarded
+  click('[data-action="ob-mode"][data-m="' + (mode || "week") + '"]');
+  click('[data-action="ob-unit"][data-u="' + (unit || "kg") + '"]');
+  click('[data-action="finish-onboarding"]');
+  await wait(40);
+}
 async function signUp(email, password) {
   await ensureMode(true);
   setInput("#input-email", email);
   setInput("#input-password", password);
   click('[data-action="auth-email"]');
   await wait(60);
+  await completeOnboarding("week", "kg");
 }
 async function signIn(email, password) {
   await ensureMode(false);
@@ -173,25 +181,31 @@ function check(name, cond) {
   await wait(20);
   check("rejects short password", /6\+ CHARACTERS/.test($("#app").textContent));
 
-  console.log("SIGN UP");
+  console.log("SIGN UP + ONBOARDING");
   await signUp("demo@forgelift.test", "secret1");
-  check("new account lands on home", /MACHINES/.test($("#app").textContent));
-  check("machine catalog present (Chest Press)", /Chest Press/.test($("#app").textContent));
-  check("no example history", !/Last · \d/.test($("#app").textContent));
-  check("profile row created on first sign-in", !!currentProfile());
+  check("onboarded account lands on plan home", /MY PLAN/.test($("#app").textContent));
+  check("plan + library tabs present", !!$('[data-action="go-week"]') && !!$('[data-action="go-library"]'));
+  check("profile row created (onboarded)", !!currentProfile() && currentProfile().onboarded === true);
   const demoId = auth.session.user.id;
 
-  console.log("FAVORITES + SEARCH");
-  click('[data-action="toggle-fav"][data-id="m0"]');
-  check("favorites group appears", /Favorites/.test($("#app").textContent));
-  click('[data-action="toggle-fav"][data-id="m0"]');
-  check("favorites group gone", !/Favorites/.test($("#app").textContent));
+  console.log("LIBRARY + SEARCH");
+  click('[data-action="go-library"]');
+  check("library shows machine catalog (Chest Press)", /Chest Press/.test($("#app").textContent));
+  check("no favorites group", !/Favorites/.test($("#app").textContent));
+  check("no example history", !/Last · \d/.test($("#app").textContent));
   setInput("#input-search", "leg");
   check("search filters to leg machines", /Leg Press/.test($("#app").textContent) && !/Chest Press/.test($("#app").textContent));
   setInput("#input-search", "");
 
+  console.log("PLAN: ASSIGN A MACHINE TO A DAY");
+  click('[data-action="open-machine"][data-id="m0"]'); // Chest Press
+  check("machine detail offers weekday assignment", /In Your Week/.test($("#app").textContent) && !!$('[data-action="toggle-day"][data-i="1"]'));
+  click('[data-action="toggle-day"][data-i="1"]'); // assign to Tuesday
+  await wait(20);
+  check("assignment persisted to profile", ((currentProfile().routine || {})["1"] || []).includes("m0"));
+
   console.log("LOG A SET");
-  click('[data-action="open-machine"][data-id="m0"]');
+  // still on Chest Press from the assignment step
   check("machine detail shows Personal Best", /Personal Best/.test($("#app").textContent));
   click('[data-action="add-set"]');
   check("a draft set appears", /SET 01/.test($("#app").textContent));
@@ -241,6 +255,7 @@ function check(name, cond) {
   await wait(20);
   check("logged out to login", /FORGE/.test($("#app").textContent) && !!$("#input-email"));
   await signIn("demo@forgelift.test", "secret1");
+  click('[data-action="go-library"]');
   check("custom machine persisted across logout", /Smith Machine/.test($("#app").textContent));
   check("theme persisted (light)", $("#app").getAttribute("data-theme") === "light");
 
@@ -252,6 +267,7 @@ function check(name, cond) {
   check("wrong password rejected", /WRONG EMAIL OR PASSWORD/.test($("#app").textContent));
   check("stays on login screen", !!$("#input-email"));
   await signIn("demo@forgelift.test", "secret1");
+  click('[data-action="go-library"]');
   check("correct password logs back in", /Smith Machine/.test($("#app").textContent));
 
   console.log("PASSKEYS");
@@ -265,6 +281,7 @@ function check(name, cond) {
   check("login offers passkey sign-in", !!$('[data-action="auth-passkey"]'));
   click('[data-action="auth-passkey"]');
   await wait(40);
+  click('[data-action="go-library"]');
   check("passkey sign-in returns to the right account", /Smith Machine/.test($("#app").textContent));
 
   console.log("BACKUP / RESTORE / DELETE");
@@ -291,6 +308,7 @@ function check(name, cond) {
   check("restore reports success", /BACKUP RESTORED/.test($("#app").textContent));
   check("restore persisted under bob", /Smith Machine/.test(JSON.stringify(auth.profiles[bobId] || {})));
   click('[data-action="go-home"]');
+  click('[data-action="go-library"]');
   check("restored machine visible on home", /Smith Machine/.test($("#app").textContent));
 
   // reject a non-backup file

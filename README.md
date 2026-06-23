@@ -46,12 +46,14 @@ How it works in the app: sign in with email once, then **Settings → Add a pass
 ## Features
 
 - **Login** — real authentication via Supabase Auth: **email + password** (sign up / sign in) plus **passkeys** (WebAuthn / biometrics), with a persistent session.
-- **Machines** grouped by muscle group plus a **Cardio** category, with favorites and search. A broad starter catalog (chest, back, legs, shoulders, arms, core and cardio).
-- **Per-machine line illustrations** (dot-matrix, theme-aware, generated in JS) — including cardio icons (treadmill, bike, rower, stairs…).
+- **Onboarding** — a one-time first-sign-in setup picks how you organise your plan (by **day of the week** or by **routine lists**) and your preferred **units**.
+- **Plan / Library home** — two tabs: **Plan** is your workout organisation (a list of machines per weekday, or named routine lists like *Chest & Biceps*) that you fill, reorder and rename; **Library** is the full machine catalogue with search. A broad starter catalog (chest, back, legs, shoulders, arms, core and cardio).
+- **Per-machine line illustrations** (dot-matrix, theme-aware, generated in JS) — detailed equipment art including cardio icons (treadmill, bike, rower, stairs…).
+- **Assign machines** to weekdays or routines straight from a machine's detail screen, or via the **picker**.
 - **Context-aware logging** — strength machines use +/− steppers for reps & weight; **cardio machines** (treadmill, bike, elliptical, rower…) drop reps/weight and log **duration, distance & calories** instead. Distance follows your unit (km / mi). "Duplicate last", save session.
 - **Progress chart** — max weight per session for strength, longest duration per session for cardio (inline SVG).
 - **Add machine** with a photo from your gallery.
-- **Settings** — light/dark theme, kg/lb units, the signed-in account, logout.
+- **Settings** — light/dark theme, kg/lb units, **plan organisation** (by day / routines), the signed-in account, logout.
 - **Backup & restore** — export your data to a `.json` file and load it back later (extra safety copy / manual transfer).
 - **Delete account** — wipe your saved workout data from Supabase and sign out (with confirmation).
 - **Responsive** — full-screen on phones, a centered phone frame on desktop.
@@ -91,7 +93,7 @@ The source design files are kept for reference:
 
 ## Data & storage
 
-Authentication is handled by **Supabase Auth** — the browser holds a signed JWT for the logged-in user. Each user owns one row in the `profiles` table (`machines`, `logs`, `unit`, `theme` as JSON), keyed by their auth user id. **Row Level Security** policies (`auth.uid() = user_id`) mean every query the client makes is automatically scoped to that user: you can only ever read or write your own row, enforced by Postgres, not by app code. No secrets or other users' data are reachable with the public anon key.
+Authentication is handled by **Supabase Auth** — the browser holds a signed JWT for the logged-in user. Each user owns one row in the `profiles` table (`machines`, `logs`, `unit`, `theme`, plus the workout plan — `routine`, `day_names`, `routine_lists`, `org_mode` — and an `onboarded` flag), keyed by their auth user id. The plan columns are added by `supabase/migrations/0002_routines.sql`. **Row Level Security** policies (`auth.uid() = user_id`) mean every query the client makes is automatically scoped to that user: you can only ever read or write your own row, enforced by Postgres, not by app code. No secrets or other users' data are reachable with the public anon key.
 
 The UI follows the session: `onAuthStateChange` drives the screens, so the app reacts to first load and to sign in / out alike.
 

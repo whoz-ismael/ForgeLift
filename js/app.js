@@ -8,14 +8,21 @@
   var LB = 0.45359237;
   var MI = 1.609344; // kilometres per mile
   var GROUPS = ["Chest", "Back", "Legs", "Shoulders", "Arms", "Core", "Cardio"];
+  var DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  var DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
   var state = {
-    screen: "loading", theme: "dark", unit: "kg",
+    screen: "loading", tab: "week", theme: "dark", unit: "kg",
     user: null,                                  // { id, name, email }
     authMode: "signin",                          // "signin" | "signup"
     emailDraft: "", passwordDraft: "",
     loginError: "", loginNotice: "", busy: false,
-    machines: [], logs: {}, activeId: null, draft: [], search: "",
+    machines: [], logs: {}, activeId: null, draft: [], search: "", pickerSearch: "",
+    // Plan organisation: machines are assigned to weekdays (routine) or to named
+    // routine lists, depending on orgMode. onboarding picks the mode + units.
+    routine: {}, dayNames: {}, selectedDay: 0, orgMode: "week",
+    routineLists: [], selectedRoutineId: null,
+    onboarded: false, obMode: null, obUnit: null,
     addName: "", addGroup: "Chest", addPhoto: null,
     settingsMsg: "", settingsMsgOk: false,
   };
@@ -37,6 +44,8 @@
   function activeIsCardio() {
     return isCardio(state.machines.find(function (m) { return m.id === state.activeId; }));
   }
+  // Monday-indexed day of the week (0 = Mon … 6 = Sun).
+  function todayIdx() { return (new Date().getDay() + 6) % 7; }
 
   // ── seed data (demo account) ──
   function seed() {
@@ -66,11 +75,24 @@
       ["Stair Climber", "Cardio"], ["Air Bike", "Cardio"], ["Ski Erg", "Cardio"], ["Arc Trainer", "Cardio"],
     ];
     var machines = base.map(function (b, i) {
-      return { id: "m" + i, name: b[0], group: b[1], fav: false, photo: null };
+      return { id: "m" + i, name: b[0], group: b[1], photo: null };
     });
-    // Fresh accounts get the machine catalog only — no example history or
-    // preset favorites. The user builds their own progress from here.
-    return { machines: machines, logs: {} };
+    var byId = function (nm) { var m = machines.find(function (x) { return x.name === nm; }); return m ? m.id : null; };
+    var pick = function (names) { return names.map(byId).filter(Boolean); };
+    // Fresh accounts get the catalog (no example history) plus a starter plan —
+    // a few weekday assignments and named routine lists to build from.
+    var routine = {
+      0: pick(["Chest Press", "Incline Press", "Pec Deck", "Bicep Curl", "Tricep Pushdown"]),
+      2: pick(["Leg Press", "Hack Squat", "Leg Extension", "Leg Curl", "Calf Raise"]),
+      4: pick(["Lat Pulldown", "Seated Row", "Back Extension", "Treadmill"]),
+    };
+    var dayNames = { 0: "Chest & Arms", 2: "Legs", 4: "Back & Cardio" };
+    var routineLists = [
+      { id: "r1", name: "Chest & Biceps", machineIds: pick(["Chest Press", "Incline Press", "Pec Deck", "Bicep Curl", "Cable Curl"]) },
+      { id: "r2", name: "Back & Abs", machineIds: pick(["Lat Pulldown", "Seated Row", "Ab Crunch", "Cable Crunch"]) },
+      { id: "r3", name: "Leg Day", machineIds: pick(["Leg Press", "Leg Extension", "Leg Curl", "Calf Raise"]) },
+    ];
+    return { machines: machines, logs: {}, routine: routine, dayNames: dayNames, routineLists: routineLists };
   }
 
   // ── persistence ──
@@ -82,6 +104,8 @@
     if (!u) return;
     var snapshot = {
       machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme,
+      routine: state.routine, dayNames: state.dayNames, orgMode: state.orgMode,
+      routineLists: state.routineLists, onboarded: state.onboarded,
     };
     saveChain = saveChain
       .then(function () { return window.ForgeLiftAuth.saveProfile(u.id, snapshot); })
@@ -119,8 +143,10 @@
     } else {
       sessionUserId = null;
       setState({
-        screen: "login", user: null, machines: [], logs: {}, activeId: null,
-        draft: [], search: "", busy: false, authMode: "signin",
+        screen: "login", tab: "week", user: null, machines: [], logs: {}, activeId: null,
+        draft: [], search: "", pickerSearch: "", busy: false, authMode: "signin",
+        routine: {}, dayNames: {}, routineLists: [], selectedRoutineId: null,
+        orgMode: "week", onboarded: false, obMode: null, obUnit: null,
         passwordDraft: "", loginError: "", loginNotice: "",
         settingsMsg: "", settingsMsgOk: false,
       });
@@ -128,20 +154,35 @@
   }
   function loadProfileThenHome() {
     window.ForgeLiftAuth.loadProfile().then(function (row) {
-      if (row) {
+      if (row && row.onboarded) {
+        // Returning, onboarded user — restore data + plan + preferences.
+        var lists = row.routineLists || [];
         setState({
           machines: row.machines || [], logs: row.logs || {},
+          routine: row.routine || {}, dayNames: row.dayNames || {},
+          routineLists: lists, selectedRoutineId: (lists[0] || {}).id || null,
+          orgMode: row.orgMode || "week", selectedDay: todayIdx(), onboarded: true,
           unit: row.unit || state.unit, theme: row.theme || state.theme,
-          screen: "home", busy: false, emailDraft: "", passwordDraft: "",
+          screen: "home", tab: "week", busy: false, emailDraft: "", passwordDraft: "",
           loginError: "", loginNotice: "",
         });
       } else {
-        // First sign-in for this user — seed the catalog and create the row.
-        var data = seed();
+        // New user (no row) or one created before onboarding existed — keep any
+        // data they already have, seed a starter plan, then run onboarding once.
+        var seeded = seed();
+        var hasData = row && Array.isArray(row.machines) && row.machines.length;
+        var lists = (row && row.routineLists) || seeded.routineLists;
         setState({
-          machines: data.machines, logs: data.logs, screen: "home", busy: false,
-          emailDraft: "", passwordDraft: "", loginError: "", loginNotice: "",
-        }, true);
+          machines: hasData ? row.machines : seeded.machines,
+          logs: (row && row.logs) || {},
+          routine: (row && row.routine) || seeded.routine,
+          dayNames: (row && row.dayNames) || seeded.dayNames,
+          routineLists: lists, selectedRoutineId: (lists[0] || {}).id || null,
+          orgMode: (row && row.orgMode) || "week", selectedDay: todayIdx(), onboarded: false,
+          unit: (row && row.unit) || state.unit, theme: (row && row.theme) || state.theme,
+          screen: "onboarding", obMode: null, obUnit: null,
+          busy: false, emailDraft: "", passwordDraft: "", loginError: "", loginNotice: "",
+        });
       }
     }).catch(function (e) {
       console.error("ForgeLift: profile load failed —", e && e.message);
@@ -220,8 +261,10 @@
   function logout() {
     // Reset the UI immediately; onChange will also fire from signOut().
     setState({
-      screen: "login", user: null, machines: [], logs: {}, activeId: null,
-      draft: [], search: "", busy: false, authMode: "signin",
+      screen: "login", tab: "week", user: null, machines: [], logs: {}, activeId: null,
+      draft: [], search: "", pickerSearch: "", busy: false, authMode: "signin",
+      routine: {}, dayNames: {}, routineLists: [], selectedRoutineId: null,
+      orgMode: "week", onboarded: false, obMode: null, obUnit: null,
       passwordDraft: "", emailDraft: "", loginError: "", loginNotice: "",
       settingsMsg: "", settingsMsgOk: false,
     });
@@ -236,14 +279,101 @@
   // ── nav ──
   function openSettings() { setState({ screen: "settings", settingsMsg: "", settingsMsgOk: false }); }
   function openAdd() { setState({ screen: "add", addName: "", addPhoto: null, addGroup: "Chest" }); }
+  function openPicker() { setState({ screen: "picker", pickerSearch: "" }); }
   function goHome() { setState({ screen: "home", search: "", settingsMsg: "", settingsMsgOk: false }); }
+  function goWeek() { setState({ tab: "week" }); }
+  function goLibrary() { setState({ tab: "library", search: "" }); }
   function openMachine(id) { setState({ activeId: id, draft: [], screen: "machine" }); }
+  function selectDay(i) { setState({ selectedDay: i }); }
 
-  // ── favorites ──
-  function toggleFav(id) {
-    setState({ machines: state.machines.map(function (m) {
-      return m.id === id ? Object.assign({}, m, { fav: !m.fav }) : m;
-    }) }, true);
+  // ── onboarding (first sign-in: pick organisation + units) ──
+  function setObMode(m) { setState({ obMode: m }); }
+  function setObUnit(u) { setState({ obUnit: u }); }
+  function finishOnboarding() {
+    if (!state.obMode || !state.obUnit) return;
+    setState({ orgMode: state.obMode, unit: state.obUnit, onboarded: true, screen: "home", tab: "week" }, true);
+  }
+
+  // ── weekday assignments (routine[dayIdx] = [machineId…]) ──
+  function dayMachineIds(i) { return state.routine[i] || []; }
+  function inDay(i, id) { return dayMachineIds(i).indexOf(id) !== -1; }
+  function machineDays(id) { var out = []; for (var i = 0; i < 7; i++) { if (inDay(i, id)) out.push(DAYS[i]); } return out; }
+  function toggleDayMachine(i, id) {
+    var cur = dayMachineIds(i);
+    var next = cur.indexOf(id) !== -1 ? cur.filter(function (x) { return x !== id; }) : cur.concat([id]);
+    var routine = Object.assign({}, state.routine); routine[i] = next;
+    setState({ routine: routine }, true);
+  }
+  function removeFromDay(i, id) {
+    var routine = Object.assign({}, state.routine);
+    routine[i] = dayMachineIds(i).filter(function (x) { return x !== id; });
+    setState({ routine: routine }, true);
+  }
+  function moveInDay(i, idx, dir) {
+    var cur = dayMachineIds(i).slice(), j = idx + dir;
+    if (j < 0 || j >= cur.length) return;
+    var t = cur[idx]; cur[idx] = cur[j]; cur[j] = t;
+    var routine = Object.assign({}, state.routine); routine[i] = cur;
+    setState({ routine: routine }, true);
+  }
+  function setDayName(val) {
+    var dayNames = Object.assign({}, state.dayNames); dayNames[state.selectedDay] = val;
+    setState({ dayNames: dayNames }, true);
+  }
+
+  // ── routine lists (day-independent organisation) ──
+  function routineById(id) { return state.routineLists.find(function (r) { return r.id === id; }) || null; }
+  function inRoutine(rid, mid) { var r = routineById(rid); return !!r && r.machineIds.indexOf(mid) !== -1; }
+  function machineRoutines(mid) { return state.routineLists.filter(function (r) { return r.machineIds.indexOf(mid) !== -1; }); }
+  function selectRoutine(id) { setState({ selectedRoutineId: id }); }
+  function setOrgWeek() { setState({ orgMode: "week" }, true); }
+  function setOrgRoutines() {
+    var cur = state.selectedRoutineId && routineById(state.selectedRoutineId)
+      ? state.selectedRoutineId : (state.routineLists[0] ? state.routineLists[0].id : null);
+    setState({ orgMode: "routines", selectedRoutineId: cur }, true);
+  }
+  function toggleRoutineMachine(rid, mid) {
+    var next = state.routineLists.map(function (r) {
+      return r.id === rid ? Object.assign({}, r, { machineIds: r.machineIds.indexOf(mid) !== -1
+        ? r.machineIds.filter(function (x) { return x !== mid; })
+        : r.machineIds.concat([mid]) }) : r;
+    });
+    setState({ routineLists: next }, true);
+  }
+  function removeFromRoutine(rid, mid) {
+    var next = state.routineLists.map(function (r) {
+      return r.id === rid ? Object.assign({}, r, { machineIds: r.machineIds.filter(function (x) { return x !== mid; }) }) : r;
+    });
+    setState({ routineLists: next }, true);
+  }
+  function moveInRoutine(rid, idx, dir) {
+    var next = state.routineLists.map(function (r) {
+      if (r.id !== rid) return r;
+      var arr = r.machineIds.slice(), j = idx + dir; if (j < 0 || j >= arr.length) return r;
+      var t = arr[idx]; arr[idx] = arr[j]; arr[j] = t; return Object.assign({}, r, { machineIds: arr });
+    });
+    setState({ routineLists: next }, true);
+  }
+  function setRoutineName(val) {
+    var next = state.routineLists.map(function (r) {
+      return r.id === state.selectedRoutineId ? Object.assign({}, r, { name: val }) : r;
+    });
+    setState({ routineLists: next }, true);
+  }
+  function createRoutine() {
+    var id = "r" + Date.now();
+    var next = state.routineLists.concat([{ id: id, name: "Routine " + (state.routineLists.length + 1), machineIds: [] }]);
+    setState({ routineLists: next, selectedRoutineId: id }, true);
+  }
+  function deleteRoutine() {
+    var id = state.selectedRoutineId;
+    var next = state.routineLists.filter(function (r) { return r.id !== id; });
+    setState({ routineLists: next, selectedRoutineId: next.length ? next[0].id : null }, true);
+  }
+  // Picker toggles a machine into the active day (week mode) or routine.
+  function pickerToggle(id) {
+    if (state.orgMode === "week") toggleDayMachine(state.selectedDay, id);
+    else if (state.selectedRoutineId) toggleRoutineMachine(state.selectedRoutineId, id);
   }
 
   // ── set drafting ──
@@ -320,8 +450,8 @@
   function saveMachine() {
     var n = state.addName.trim();
     if (!n) return;
-    var m = { id: "c" + Date.now(), name: n, group: state.addGroup, fav: false, photo: state.addPhoto };
-    setState({ machines: state.machines.concat([m]), addName: "", addPhoto: null, screen: "home" }, true);
+    var m = { id: "c" + Date.now(), name: n, group: state.addGroup, photo: state.addPhoto };
+    setState({ machines: state.machines.concat([m]), addName: "", addPhoto: null, tab: "library", screen: "home" }, true);
   }
 
   // ── settings ──
@@ -336,8 +466,37 @@
         id: String(m.id || ("r" + Date.now() + "_" + i)),
         name: String(m.name),
         group: GROUPS.indexOf(m.group) >= 0 ? m.group : (m.group ? String(m.group) : "Chest"),
-        fav: !!m.fav,
         photo: typeof m.photo === "string" ? m.photo : null,
+      };
+    });
+  }
+  function sanitizeRoutine(obj, ids) {
+    var out = {};
+    if (!obj || typeof obj !== "object") return out;
+    Object.keys(obj).forEach(function (k) {
+      var i = Number(k);
+      if (i < 0 || i > 6 || !Array.isArray(obj[k])) return;
+      var list = obj[k].map(String).filter(function (id) { return ids.indexOf(id) >= 0; });
+      if (list.length) out[i] = list;
+    });
+    return out;
+  }
+  function sanitizeDayNames(obj) {
+    var out = {};
+    if (!obj || typeof obj !== "object") return out;
+    Object.keys(obj).forEach(function (k) {
+      var i = Number(k);
+      if (i >= 0 && i <= 6 && obj[k] != null) out[i] = String(obj[k]);
+    });
+    return out;
+  }
+  function sanitizeRoutineLists(arr, ids) {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(function (r) { return r && r.id != null; }).map(function (r) {
+      return {
+        id: String(r.id),
+        name: String(r.name || "Routine"),
+        machineIds: Array.isArray(r.machineIds) ? r.machineIds.map(String).filter(function (id) { return ids.indexOf(id) >= 0; }) : [],
       };
     });
   }
@@ -382,7 +541,10 @@
       var who = state.user ? (state.user.email || state.user.name) : "backup";
       var payload = {
         app: "ForgeLift", version: 1, user: who, exportedAt: new Date().toISOString(),
-        data: { machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme },
+        data: {
+          machines: state.machines, logs: state.logs, unit: state.unit, theme: state.theme,
+          routine: state.routine, dayNames: state.dayNames, orgMode: state.orgMode, routineLists: state.routineLists,
+        },
       };
       json = JSON.stringify(payload, null, 2);
       var slug = who.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "backup";
@@ -441,7 +603,17 @@
       var logs = sanitizeLogs(d.logs);
       var unit = d.unit === "lb" ? "lb" : "kg";
       var theme = d.theme === "light" ? "light" : "dark";
-      setState({ machines: machines, logs: logs, unit: unit, theme: theme, settingsMsg: "BACKUP RESTORED · " + machines.length + " MACHINES", settingsMsgOk: true }, true);
+      var ids = machines.map(function (m) { return m.id; });
+      var routine = sanitizeRoutine(d.routine, ids);
+      var dayNames = sanitizeDayNames(d.dayNames);
+      var routineLists = sanitizeRoutineLists(d.routineLists, ids);
+      var orgMode = d.orgMode === "routines" ? "routines" : "week";
+      setState({
+        machines: machines, logs: logs, unit: unit, theme: theme,
+        routine: routine, dayNames: dayNames, routineLists: routineLists, orgMode: orgMode,
+        selectedRoutineId: (routineLists[0] || {}).id || null,
+        settingsMsg: "BACKUP RESTORED · " + machines.length + " MACHINES", settingsMsgOk: true,
+      }, true);
     };
     r.onerror = function () { setState({ settingsMsg: "COULD NOT READ FILE", settingsMsgOk: false }); };
     r.readAsText(file);
@@ -474,6 +646,16 @@
     try {
       return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
     } catch (e) { return iso; }
+  }
+  function lastDetail(m) {
+    var sess = state.logs[m.id] || [];
+    var last = sess.length ? sess[sess.length - 1] : null;
+    if (!last) return "—";
+    if (isCardio(m)) {
+      var dist = sumField(last, "distance");
+      return dist > 0 ? dispDist(dist) + " " + distUnit() : sumField(last, "duration") + " min";
+    }
+    return dispW(Math.max.apply(null, last.sets.map(function (s) { return s.weight; }))) + " " + state.unit;
   }
 
   // ── icon resolution ──
@@ -521,28 +703,29 @@
   }
 
   function machineIcon(name, group, c, a) {
-    var W = 'fill="' + a + '" stroke="none"';
+    // Machine equipment illustrations — line-art, 40×40 viewBox. ${a} fills the
+    // weight stacks / pads accent; the rest is the ${c} stroke.
     var P = {
-      press: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v9"/><path d="M20 21l-4 8"/><path d="M20 21l4 8"/><path d="M20 14l-6-3"/><path d="M20 14l6-3"/><path d="M11 11h18"/><circle cx="11" cy="11" r="2.4" ' + W + '/><circle cx="29" cy="11" r="2.4" ' + W + '/>',
-      curl: '<circle cx="18" cy="9" r="2.6"/><path d="M18 12v10"/><path d="M18 22l-4 7"/><path d="M18 22l4 7"/><path d="M18 14l4 5"/><path d="M22 19l-3-4"/><circle cx="19" cy="14.5" r="2.4" ' + W + '/>',
-      lateral: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14h-9"/><path d="M20 14h9"/><circle cx="10" cy="14" r="2.4" ' + W + '/><circle cx="30" cy="14" r="2.4" ' + W + '/>',
-      fly: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14c-6 0-9 2-9 6"/><path d="M20 14c6 0 9 2 9 6"/><circle cx="11" cy="20" r="2.4" ' + W + '/><circle cx="29" cy="20" r="2.4" ' + W + '/>',
-      pulldown: '<path d="M12 7h16"/><circle cx="12" cy="7" r="2.2" ' + W + '/><circle cx="28" cy="7" r="2.2" ' + W + '/><circle cx="20" cy="15" r="2.6"/><path d="M20 18v6"/><path d="M20 18l-5-9"/><path d="M20 18l5-9"/><path d="M20 24l-4 6"/><path d="M20 24l5 3v3"/>',
-      row: '<path d="M30 7v25"/><circle cx="15" cy="12" r="2.6"/><path d="M15 15v6"/><path d="M15 21h7l3 8"/><path d="M15 16h9"/><circle cx="24" cy="16" r="2.4" ' + W + '/><path d="M26 16h4"/>',
-      pullup: '<path d="M9 8h22"/><path d="M16 8v3"/><path d="M24 8v3"/><circle cx="20" cy="14" r="2.6"/><path d="M16 11l4 3 4-3"/><path d="M20 17v8"/><path d="M20 25l-3 6"/><path d="M20 25l3 6"/>',
-      backext: '<path d="M7 31l12-7"/><circle cx="16" cy="18" r="2.6"/><path d="M16 21l8 5"/><path d="M24 26l6-2"/><path d="M16 21l-3 8"/><circle cx="30" cy="24" r="2.4" ' + W + '/>',
-      legpress: '<path d="M8 30v-7a2 2 0 0 1 2-2h3"/><path d="M8 30h8"/><circle cx="12" cy="17" r="2.5"/><path d="M14 21l10-6"/><path d="M24 15l5-3"/><path d="M26 8l6 4-4 6z" ' + W + '/>',
-      legext: '<path d="M10 13v11"/><path d="M10 24h6"/><circle cx="13" cy="10" r="2.4"/><path d="M16 24h5"/><path d="M21 24l8-3"/><circle cx="29" cy="21" r="2.4" ' + W + '/>',
-      legcurl: '<path d="M7 27h16"/><circle cx="11" cy="22.5" r="2.4"/><path d="M13 24h9"/><path d="M22 24l3-7"/><circle cx="25" cy="17" r="2.4" ' + W + '/>',
-      squat: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v6"/><path d="M13 12h14"/><circle cx="13" cy="12" r="2.2" ' + W + '/><circle cx="27" cy="12" r="2.2" ' + W + '/><path d="M20 18l-5 5v6"/><path d="M20 18l5 5v6"/>',
-      calf: '<circle cx="20" cy="9" r="2.6"/><path d="M20 12v13"/><path d="M14 12h12"/><circle cx="14" cy="12" r="2.2" ' + W + '/><circle cx="26" cy="12" r="2.2" ' + W + '/><path d="M20 25l-4 5"/><path d="M20 25l4 5"/><path d="M14 30h12"/>',
-      pushdown: '<path d="M12 7h16"/><circle cx="20" cy="9.5" r="2.6"/><path d="M20 12.5v8"/><path d="M20 20.5l-4 7"/><path d="M20 20.5l4 7"/><path d="M20 15l-4 4v4"/><path d="M16 9.5v5.5"/><circle cx="16" cy="23" r="2.4" ' + W + '/>',
-      crunch: '<path d="M7 29h18"/><path d="M20 28l3-5"/><path d="M20 28l-6-4"/><circle cx="12" cy="20" r="2.6"/><path d="M14 22l5 5"/><path d="M14 21l5-1"/>',
-      run: '<circle cx="20" cy="8" r="2.6"/><path d="M20 11l-2 7"/><path d="M20 13l5-1"/><path d="M20 13l-4 3"/><path d="M18 18l5 4"/><path d="M18 18l-4 7"/><path d="M6 31h28"/>',
-      bike: '<circle cx="11" cy="28" r="4.5"/><circle cx="29" cy="28" r="4.5"/><path d="M11 28h9l4-11 5 11"/><path d="M19 17h6"/><path d="M25 17l3-3"/>',
-      rower: '<path d="M6 30h28"/><circle cx="9" cy="25" r="3.5"/><path d="M12 25h7"/><path d="M19 25l7-4"/><path d="M26 21v-3"/><path d="M24 18h4"/>',
-      stairs: '<path d="M7 31h7v-6h7v-6h7v-6h5"/>',
-      cardio: '<path d="M4 20h7l2-4 3 9 2-5h18"/>',
+      press: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="29" y="6" width="7" height="26" rx="1"/><rect x="29" y="13" width="7" height="5" fill="${a}" stroke="none"/><line x1="29" y1="32" x2="8" y2="32"/><line x1="8" y1="32" x2="8" y2="37"/><line x1="16" y1="37" x2="16" y2="30"/><rect x="10" y="28" width="12" height="3.5" rx="1.5"/><rect x="6" y="15" width="3.5" height="14" rx="1.5"/><line x1="10" y1="29" x2="16" y2="29"/><path d="M21 23 L29 17"/><line x1="16" y1="20" x2="26" y2="26"/>`,
+      curl: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="29" y="7" width="6" height="24" rx="1"/><rect x="29" y="13" width="6" height="6" fill="${a}" stroke="none"/><line x1="10" y1="37" x2="29" y2="37"/><line x1="13" y1="37" x2="13" y2="29"/><rect x="8" y="27" width="10" height="3.5" rx="1.5"/><path d="M13 29 Q14 16 26 16" stroke-width="2.5"/><rect x="23" y="14" width="7" height="4" rx="1.5" fill="${a}" stroke="none"/>`,
+      lateral: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="9" x2="20" y2="37"/><rect x="16" y="23" width="8" height="10" rx="1"/><rect x="16" y="24" width="8" height="4" rx="1" fill="${a}" stroke="none"/><path d="M20 20 L7 25"/><path d="M20 20 L33 25"/><rect x="4" y="23" width="5" height="4" rx="1" fill="${a}" stroke="none"/><rect x="31" y="23" width="5" height="4" rx="1" fill="${a}" stroke="none"/>`,
+      fly: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="5" x2="5" y2="37"/><line x1="35" y1="5" x2="35" y2="37"/><line x1="5" y1="5" x2="35" y2="5"/><rect x="2" y="26" width="6" height="12" rx="0.5" fill="${a}" stroke="none"/><rect x="32" y="26" width="6" height="12" rx="0.5" fill="${a}" stroke="none"/><line x1="5" y1="11" x2="15" y2="21"/><line x1="35" y1="11" x2="25" y2="21"/><circle cx="15" cy="21" r="3" fill="${a}" stroke="none"/><circle cx="25" cy="21" r="3" fill="${a}" stroke="none"/>`,
+      pulldown: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="6" y1="5" x2="6" y2="37"/><line x1="34" y1="5" x2="34" y2="37"/><line x1="6" y1="5" x2="34" y2="5"/><rect x="32" y="8" width="7" height="22" rx="1" fill="${a}" stroke="none"/><line x1="20" y1="5" x2="20" y2="13"/><line x1="11" y1="13" x2="29" y2="13"/><rect x="9" y="11" width="4" height="4" rx="1" fill="${a}" stroke="none"/><rect x="27" y="11" width="4" height="4" rx="1" fill="${a}" stroke="none"/><rect x="13" y="27" width="14" height="4" rx="1.5"/><rect x="11" y="31" width="18" height="3.5" rx="1.5"/>`,
+      row: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="3" y="11" width="7" height="22" rx="1"/><rect x="3" y="18" width="7" height="6" fill="${a}" stroke="none"/><line x1="10" y1="22" x2="33" y2="22"/><circle cx="21" cy="22" r="3" fill="${a}" stroke="none"/><rect x="19" y="26" width="10" height="3.5" rx="1.5"/><line x1="24" y1="30" x2="24" y2="37"/><line x1="33" y1="22" x2="33" y2="37"/><rect x="8" y="33" width="10" height="3" rx="1.5"/>`,
+      pullup: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="6" y1="5" x2="6" y2="37"/><line x1="34" y1="5" x2="34" y2="37"/><line x1="6" y1="5" x2="34" y2="5"/><line x1="13" y1="5" x2="13" y2="27"/><line x1="27" y1="5" x2="27" y2="27"/><rect x="13" y="27" width="14" height="3.5" rx="1.5"/><rect x="32" y="9" width="7" height="20" rx="1" fill="${a}" stroke="none"/>`,
+      backext: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="37" x2="5" y2="20"/><path d="M5 20 L27 9"/><rect x="22" y="7" width="14" height="5" rx="1.5" fill="${a}" stroke="none"/><rect x="9" y="25" width="10" height="4.5" rx="1.5"/><line x1="5" y1="27" x2="9" y2="27"/><line x1="27" y1="9" x2="27" y2="37"/>`,
+      legpress: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="37" x2="5" y2="22"/><path d="M5 22 L22 9"/><rect x="18" y="7" width="16" height="5" rx="1.5" fill="${a}" stroke="none"/><rect x="3" y="21" width="12" height="3.5" rx="1.5"/><line x1="15" y1="22" x2="15" y2="37"/><line x1="5" y1="29" x2="15" y2="29"/>`,
+      legext: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="8" y1="10" x2="8" y2="37"/><line x1="27" y1="10" x2="27" y2="37"/><rect x="8" y="18" width="19" height="4" rx="1.5"/><rect x="31" y="6" width="5" height="18" rx="1" fill="${a}" stroke="none"/><line x1="27" y1="22" x2="32" y2="22"/><path d="M17 22 L24 33"/><rect x="21" y="32" width="8" height="4" rx="1.5" fill="${a}" stroke="none"/>`,
+      legcurl: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="17" x2="5" y2="37"/><line x1="35" y1="17" x2="35" y2="37"/><path d="M5 17 Q20 8 35 17"/><rect x="12" y="13" width="16" height="5" rx="1.5" fill="${a}" stroke="none"/><path d="M28 31 Q35 26 35 19"/><rect x="25" y="29" width="8" height="4" rx="1.5" fill="${a}" stroke="none"/>`,
+      squat: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="7" y1="4" x2="7" y2="37"/><line x1="33" y1="4" x2="33" y2="37"/><line x1="7" y1="4" x2="33" y2="4"/><line x1="5" y1="18" x2="35" y2="18"/><rect x="4" y="16" width="6" height="5" rx="1" fill="${a}" stroke="none"/><rect x="30" y="16" width="6" height="5" rx="1" fill="${a}" stroke="none"/><line x1="7" y1="28" x2="33" y2="28"/>`,
+      calf: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="5" x2="20" y2="37"/><line x1="7" y1="5" x2="33" y2="5"/><line x1="7" y1="5" x2="7" y2="14"/><line x1="33" y1="5" x2="33" y2="14"/><line x1="7" y1="14" x2="33" y2="14"/><rect x="13" y="12" width="14" height="4" rx="1.5" fill="${a}" stroke="none"/><rect x="12" y="32" width="16" height="5" rx="2"/>`,
+      pushdown: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="4" x2="20" y2="37"/><line x1="7" y1="4" x2="33" y2="4"/><line x1="7" y1="4" x2="7" y2="19"/><line x1="33" y1="4" x2="33" y2="19"/><rect x="17" y="7" width="6" height="20" rx="1" fill="${a}" stroke="none"/><line x1="20" y1="27" x2="14" y2="33"/><line x1="20" y1="27" x2="26" y2="33"/><line x1="12" y1="33" x2="28" y2="33"/>`,
+      crunch: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="7" x2="20" y2="37"/><rect x="29" y="9" width="6" height="20" rx="1" fill="${a}" stroke="none"/><line x1="20" y1="18" x2="29" y2="14"/><rect x="11" y="26" width="18" height="4" rx="1.5"/><line x1="20" y1="26" x2="20" y2="37"/><path d="M14 24 L8 16"/><path d="M26 24 L32 16"/>`,
+      run: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="4" y="21" width="26" height="8" rx="1.5"/><line x1="28" y1="21" x2="34" y2="6"/><rect x="30" y="4" width="8" height="6" rx="1"/><line x1="4" y1="29" x2="4" y2="37"/><line x1="30" y1="29" x2="30" y2="37"/>`,
+      bike: `<line x1="3" y1="37" x2="37" y2="37"/><circle cx="29" cy="28" r="7"/><circle cx="29" cy="28" r="2.5" fill="${a}" stroke="none"/><line x1="10" y1="37" x2="21" y2="23"/><line x1="21" y1="23" x2="29" y2="28"/><line x1="21" y1="23" x2="17" y2="14"/><line x1="13" y1="13" x2="21" y2="13"/><line x1="21" y1="23" x2="29" y2="17"/><line x1="26" y1="14" x2="33" y2="14"/>`,
+      rower: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="4" y1="27" x2="36" y2="31"/><line x1="4" y1="27" x2="4" y2="37"/><line x1="36" y1="31" x2="36" y2="37"/><rect x="4" y="20" width="10" height="7" rx="1.5"/><rect x="4" y="21" width="10" height="3.5" rx="1" fill="${a}" stroke="none"/><line x1="14" y1="24" x2="35" y2="21"/><circle cx="25" cy="27" r="2.5"/>`,
+      stairs: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="8" y1="5" x2="8" y2="37"/><line x1="32" y1="5" x2="32" y2="37"/><line x1="8" y1="5" x2="32" y2="5"/><rect x="8" y="9" width="10" height="5" rx="0.5" fill="${a}" stroke="none"/><rect x="22" y="17" width="10" height="5" rx="0.5" fill="${a}" stroke="none"/><rect x="8" y="25" width="10" height="5" rx="0.5" fill="${a}" stroke="none"/><line x1="8" y1="14" x2="22" y2="17"/><line x1="22" y1="22" x2="8" y2="25"/>`,
+      cardio: `<line x1="3" y1="37" x2="37" y2="37"/><ellipse cx="20" cy="31" rx="13" ry="5"/><line x1="11" y1="27" x2="8" y2="7"/><line x1="29" y1="27" x2="32" y2="7"/><line x1="6" y1="9" x2="34" y2="9"/><line x1="8" y1="7" x2="8" y2="20"/><line x1="32" y1="7" x2="32" y2="20"/><circle cx="9" cy="36" r="3" fill="${a}" stroke="none"/><circle cx="31" cy="36" r="3" fill="${a}" stroke="none"/>`,
     }[iconKey(name, group)];
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" stroke="' + c + '" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">' + P + "</svg>";
     return "data:image/svg+xml," + encodeURIComponent(svg);
@@ -561,7 +744,9 @@
     var html = "";
     if (state.screen === "loading") html = viewLoading(isDark, iconAccent);
     else if (state.screen === "login") html = viewLogin(isDark, iconAccent);
+    else if (state.screen === "onboarding") html = viewOnboarding();
     else if (state.screen === "home") html = viewHome(ul, iconStroke, iconAccent);
+    else if (state.screen === "picker") html = viewPicker(iconStroke, iconAccent);
     else if (state.screen === "machine") html = viewMachine(ul);
     else if (state.screen === "add") html = viewAdd();
     else if (state.screen === "settings") html = viewSettings(isDark, ul);
@@ -652,86 +837,245 @@
   }
 
   // ── HOME ──
+  // ── ONBOARDING (first sign-in) ──
+  function viewOnboarding() {
+    var card = function (mode, title, desc) {
+      var on = state.obMode === mode;
+      var cs = "display:flex;align-items:flex-start;gap:13px;width:100%;text-align:left;padding:16px;border-radius:8px;cursor:pointer;background:" + (on ? "var(--surface)" : "transparent") + ";border:1.5px solid " + (on ? "var(--accent)" : "var(--border)") + ";";
+      var ds = "flex-shrink:0;margin-top:2px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:" + (on ? "#fff" : "transparent") + ";border:1.5px solid " + (on ? "var(--accent)" : "var(--border)") + ";background:" + (on ? "var(--accent)" : "transparent") + ";";
+      return '<div data-action="ob-mode" data-m="' + mode + '" style="' + cs + '">' +
+          '<span style="' + ds + '"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4"><path d="M5 12l5 5L20 6"></path></svg></span>' +
+          '<div style="flex:1;min-width:0;"><div style="font-family:\'Doto\',monospace;font-weight:700;font-size:17px;letter-spacing:0.04em;color:var(--text);margin-bottom:4px;">' + title + '</div>' +
+          '<div style="font-size:11px;letter-spacing:0.02em;line-height:1.55;color:var(--muted);">' + desc + '</div></div>' +
+        '</div>';
+    };
+    var unitBtn = function (u, label) {
+      var on = state.obUnit === u;
+      var st = "flex:1;background:" + (on ? "var(--accent)" : "transparent") + ";color:" + (on ? "#fff" : "var(--muted)") + ";border:1.5px solid " + (on ? "var(--accent)" : "var(--border)") + ";font-weight:700;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;padding:16px;border-radius:6px;cursor:pointer;";
+      return '<button data-action="ob-unit" data-u="' + u + '" style="' + st + '">' + label + '</button>';
+    };
+    var ready = !!(state.obMode && state.obUnit);
+    var btn = ready
+      ? '<button data-action="finish-onboarding" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:17px;border-radius:4px;cursor:pointer;">Enter ForgeLift →</button>'
+      : '<div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-weight:700;font-size:13px;letter-spacing:0.16em;text-transform:uppercase;padding:17px;border-radius:4px;text-align:center;">Pick both to continue</div>';
+    return '<div class="screen" style="display:flex;flex-direction:column;">' +
+      '<div style="flex:1;overflow:auto;padding:54px 26px 24px;">' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:40px;line-height:0.9;letter-spacing:0.01em;color:var(--text);margin-bottom:8px;">LET\'S SET<br>YOU UP</div>' +
+        '<div style="font-size:11px;letter-spacing:0.04em;line-height:1.6;color:var(--muted);margin-bottom:30px;">Two quick choices. You can change both later in Settings.</div>' +
+        '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:5px;">How do you train?</div>' +
+        '<div style="font-size:10px;letter-spacing:0.04em;color:var(--muted);margin-bottom:13px;">Pick how you want to organize your machines.</div>' +
+        '<div style="display:flex;flex-direction:column;gap:11px;margin-bottom:30px;">' +
+          card("week", "BY DAY OF THE WEEK", "A list of machines for each weekday you train — e.g. Monday chest, Wednesday legs.") +
+          card("routines", "BY ROUTINE LISTS", "Named lists like Chest &amp; Biceps or Back &amp; Abs — no fixed day required.") +
+        '</div>' +
+        '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:5px;">Preferred units</div>' +
+        '<div style="font-size:10px;letter-spacing:0.04em;color:var(--muted);margin-bottom:13px;">How should we show weights?</div>' +
+        '<div style="display:flex;gap:11px;">' + unitBtn("kg", "Kilograms · kg") + unitBtn("lb", "Pounds · lb") + '</div>' +
+      '</div>' +
+      '<div style="flex-shrink:0;padding:14px 26px 30px;background:linear-gradient(to top,var(--bg) 70%,transparent);">' + btn + '</div>' +
+    '</div>';
+  }
+
+  // Machine thumbnail (photo or generated icon), `size` px square.
+  function thumbHtml(m, size, iconStroke, iconAccent) {
+    var s = size + "px";
+    return m.photo
+      ? '<img src="' + esc(m.photo) + '" style="width:' + s + ';height:' + s + ';border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);" />'
+      : '<div style="width:' + s + ';height:' + s + ';border-radius:4px;flex-shrink:0;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="' + machineIcon(m.name, m.group, iconStroke, iconAccent) + '" style="width:100%;height:100%;object-fit:contain;display:block;" /></div>';
+  }
+  // An ordered plan row (in a day or routine): position, machine, reorder + remove.
+  function planRow(m, idx, n, upAction, dnAction, rmAction, iconStroke, iconAccent) {
+    var pos = String(idx + 1).padStart(2, "0");
+    var arrowBtn = function (action, disabled, d) {
+      var col = disabled ? "var(--border)" : "var(--muted)";
+      return '<button data-action="' + action + '" data-i="' + idx + '" style="width:26px;height:21px;background:transparent;border:none;color:' + col + ';cursor:' + (disabled ? "default" : "pointer") + ';display:flex;align-items:center;justify-content:center;">' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="' + d + '"></path></svg></button>';
+    };
+    return '<div style="margin-top:10px;display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--border);">' +
+      '<span style="font-family:\'Doto\',monospace;font-weight:700;font-size:14px;color:var(--muted);width:22px;flex-shrink:0;">' + pos + '</span>' +
+      '<div data-action="open-machine" data-id="' + esc(m.id) + '" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;cursor:pointer;">' +
+        thumbHtml(m, 40, iconStroke, iconAccent) +
+        '<div style="flex:1;min-width:0;"><div style="font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(m.name) + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">' + esc(lastDetail(m)) + '</div></div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;flex-shrink:0;">' + arrowBtn(upAction, idx === 0, "M6 15l6-6 6 6") + arrowBtn(dnAction, idx === n - 1, "M6 9l6 6 6-6") + '</div>' +
+      '<button data-action="' + rmAction + '" data-id="' + esc(m.id) + '" style="width:30px;height:30px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;" class="hov-border-accent"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>' +
+    '</div>';
+  }
+  function planEmpty(title, body) {
+    return '<div style="margin-top:22px;border:1px dashed var(--border);border-radius:8px;padding:44px 22px;text-align:center;">' +
+      '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:26px;letter-spacing:0.08em;color:var(--muted);margin-bottom:10px;">' + title + '</div>' +
+      '<div style="font-size:11px;letter-spacing:0.06em;line-height:1.6;color:var(--muted);">' + body + '</div></div>';
+  }
+
+  // ── HOME (Plan / Library tabs) ──
   function viewHome(ul, iconStroke, iconAccent) {
+    var greeting = "Hello, " + ((state.user && state.user.name) || "").toUpperCase();
+    var homeTitle = state.tab === "week" ? "MY PLAN" : "LIBRARY";
+    var settingsBtn = '<button data-action="open-settings" class="hov-border-accent" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg></button>';
+    var tabBtn = function (active, action, label) {
+      var st = "flex:1;background:" + (active ? "var(--text)" : "transparent") + ";color:" + (active ? "var(--bg)" : "var(--muted)") + ";border:1px solid " + (active ? "var(--text)" : "var(--border)") + ";font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:12px;border-radius:5px;cursor:pointer;";
+      return '<button data-action="' + action + '" style="' + st + '">' + label + '</button>';
+    };
+    var header = '<div style="padding:54px 22px 0;flex-shrink:0;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;">' +
+          '<div><div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(greeting) + '</div>' +
+          '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:38px;line-height:0.95;color:var(--text);">' + homeTitle + '</div></div>' + settingsBtn +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:16px;">' + tabBtn(state.tab === "week", "go-week", "Plan") + tabBtn(state.tab === "library", "go-library", "Library") + '</div>' +
+      '</div>';
+
+    if (state.tab === "library") return header + libraryBody(ul, iconStroke, iconAccent);
+    return header + planBody(iconStroke, iconAccent);
+  }
+
+  // Library tab: full catalogue grouped by muscle, with day-assignment badges.
+  function libraryBody(ul, iconStroke, iconAccent) {
     var q = state.search.trim().toLowerCase();
     var filt = state.machines.filter(function (m) { return !q || m.name.toLowerCase().includes(q); });
-
-    var mkRow = function (m) {
-      var sess = state.logs[m.id] || [];
-      var last = sess.length ? sess[sess.length - 1] : null;
-      var detail = "—";
-      if (last) {
-        if (isCardio(m)) {
-          var dist = sumField(last, "distance");
-          detail = dist > 0 ? dispDist(dist) + " " + distUnit() : sumField(last, "duration") + " min";
-        } else {
-          detail = dispW(Math.max.apply(null, last.sets.map(function (s) { return s.weight; }))) + " " + ul;
-        }
-      }
-      var thumb = m.photo
-        ? '<img src="' + esc(m.photo) + '" style="width:42px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);" />'
-        : '<div style="width:42px;height:42px;border-radius:4px;flex-shrink:0;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="' + machineIcon(m.name, m.group, iconStroke, iconAccent) + '" style="width:100%;height:100%;object-fit:contain;display:block;" /></div>';
-      var favDot = m.fav
-        ? '<span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span>'
-        : '<span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);"></span>';
-      return '<div data-action="open-machine" data-id="' + esc(m.id) + '" style="display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer;">' +
-        thumb +
-        '<div style="flex:1;min-width:0;">' +
-          '<div style="font-size:15px;color:var(--text);letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(m.name) + '</div>' +
-          '<div style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Last · ' + esc(detail) + '</div>' +
-        '</div>' +
-        '<button data-action="toggle-fav" data-id="' + esc(m.id) + '" style="width:34px;height:34px;flex-shrink:0;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + favDot + '</button>' +
-      '</div>';
-    };
-
     var groups = [];
-    var favs = filt.filter(function (m) { return m.fav; });
-    if (favs.length) groups.push({ group: "Favorites", count: favs.length, items: favs });
     GROUPS.forEach(function (g) {
       var items = filt.filter(function (m) { return m.group === g; });
-      if (items.length) groups.push({ group: g, count: items.length, items: items });
+      if (items.length) groups.push({ group: g, items: items });
     });
     filt.forEach(function (m) {
       if (GROUPS.indexOf(m.group) === -1) {
         var grp = groups.find(function (x) { return x.group === m.group; });
-        if (!grp) { grp = { group: m.group, count: 0, items: [] }; groups.push(grp); }
-        grp.items.push(m); grp.count = grp.items.length;
+        if (!grp) { grp = { group: m.group, items: [] }; groups.push(grp); }
+        grp.items.push(m);
       }
     });
-
+    var row = function (m) {
+      var days = machineDays(m.id);
+      var badge = days.length
+        ? '<span style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;flex-shrink:0;">' + esc(days.join("·")) + '</span>'
+        : "";
+      return '<div data-action="open-machine" data-id="' + esc(m.id) + '" style="display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer;">' +
+        thumbHtml(m, 42, iconStroke, iconAccent) +
+        '<div style="flex:1;min-width:0;"><div style="font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(m.name) + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Last · ' + esc(lastDetail(m)) + '</div></div>' +
+        badge +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex-shrink:0;"><path d="M9 5l7 7-7 7"></path></svg>' +
+      '</div>';
+    };
     var listHtml = groups.map(function (g) {
       return '<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">' +
           '<span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(g.group) + '</span>' +
-          '<span style="font-size:10px;color:var(--muted);">' + g.count + '</span>' +
+          '<span style="font-size:10px;color:var(--muted);">' + g.items.length + '</span>' +
           '<span style="flex:1;height:1px;background:var(--border);"></span>' +
-        '</div>' + g.items.map(mkRow).join("");
+        '</div>' + g.items.map(row).join("");
     }).join("");
-    if (!groups.length) {
-      listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div>';
-    }
-
-    var greeting = "Hello, " + ((state.user && state.user.name) || "").toUpperCase();
-
-    return '<div class="screen" style="display:flex;flex-direction:column;">' +
-      '<div style="padding:54px 22px 12px;flex-shrink:0;">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;">' +
-          '<div>' +
-            '<div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(greeting) + '</div>' +
-            '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:38px;line-height:0.95;color:var(--text);">MACHINES</div>' +
-          '</div>' +
-          '<button data-action="open-settings" class="hov-border-accent" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
-            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>' +
-          '</button>' +
-        '</div>' +
-        '<div style="display:flex;align-items:center;gap:10px;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">' +
+    if (!groups.length) listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div>';
+    return '<div style="padding:16px 22px 0;flex-shrink:0;">' +
+        '<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">' +
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>' +
           '<input id="input-search" value="' + esc(state.search) + '" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" />' +
         '</div>' +
       '</div>' +
-      '<div style="flex:1;overflow:auto;padding:6px 22px 110px;">' + listHtml + '</div>' +
+      '<div style="flex:1;overflow:auto;padding:6px 22px 120px;">' + listHtml + '</div>' +
       '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">' +
-        '<button data-action="open-add" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">＋ Add Machine</button>' +
-      '</div></div>';
+        '<button data-action="open-add" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">＋ New Machine</button>' +
+      '</div>';
+  }
+
+  // Plan tab: weekday assignments or routine lists, depending on orgMode.
+  function planBody(iconStroke, iconAccent) {
+    var inner, addBtn = true;
+    if (state.orgMode === "week") {
+      var pills = DAYS.map(function (short, i) {
+        var sel = i === state.selectedDay, isToday = i === todayIdx(), n = dayMachineIds(i).length;
+        var ps = "flex:1;min-width:0;padding:9px 2px;border-radius:7px;cursor:pointer;text-align:center;background:" + (sel ? "var(--text)" : "var(--surface)") + ";border:1px solid " + (sel ? "var(--text)" : "var(--border)") + ";";
+        var ls = "display:block;font-family:'Doto',monospace;font-weight:700;font-size:13px;color:" + (sel ? "var(--bg)" : (isToday ? "var(--accent)" : "var(--text)")) + ";";
+        var cs = "display:block;margin-top:3px;font-size:9px;letter-spacing:0.06em;color:" + (sel ? "var(--bg)" : "var(--muted)") + ";";
+        return '<div data-action="select-day" data-i="' + i + '" style="' + ps + '"><span style="' + ls + '">' + short + '</span><span style="' + cs + '">' + (n ? n : "·") + '</span></div>';
+      }).join("");
+      var ids = dayMachineIds(state.selectedDay);
+      var label = (state.dayNames[state.selectedDay] || DAYS_FULL[state.selectedDay]).toUpperCase();
+      var rows = ids.length
+        ? ids.map(function (id, idx) {
+            var m = state.machines.find(function (x) { return x.id === id; });
+            return m ? planRow(m, idx, ids.length, "move-day-up", "move-day-dn", "remove-day", iconStroke, iconAccent) : "";
+          }).join("")
+        : planEmpty("REST DAY", "Nothing planned yet.<br>Add the machines you'll use on this day.");
+      inner = '<div style="display:flex;gap:6px;">' + pills + '</div>' +
+        '<div style="margin-top:24px;display:flex;align-items:center;gap:10px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(label) + '</span><span style="flex:1;height:1px;background:var(--border);"></span></div>' +
+        '<input id="input-day-name" value="' + esc(state.dayNames[state.selectedDay] || "") + '" placeholder="NAME THIS DAY · E.G. CHEST & ARMS" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />' +
+        rows;
+    } else {
+      var chips = state.routineLists.map(function (r) {
+        var sel = r.id === state.selectedRoutineId;
+        var st = "display:flex;align-items:center;gap:6px;background:" + (sel ? "var(--text)" : "transparent") + ";color:" + (sel ? "var(--bg)" : "var(--muted)") + ";border:1px solid " + (sel ? "var(--text)" : "var(--border)") + ";font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:10px 14px;border-radius:7px;cursor:pointer;";
+        return '<button data-action="select-routine" data-id="' + esc(r.id) + '" style="' + st + '">' + esc(r.name) + '<span style="font-size:10px;color:' + (sel ? "var(--bg)" : "var(--muted)") + ';">' + r.machineIds.length + '</span></button>';
+      }).join("");
+      var newChip = '<button data-action="create-routine" style="display:flex;align-items:center;gap:6px;background:transparent;border:1px dashed var(--border);color:var(--muted);font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:10px 14px;border-radius:7px;cursor:pointer;" class="hov-border-accent">＋ New</button>';
+      var chipRow = '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + chips + newChip + '</div>';
+      var r = routineById(state.selectedRoutineId);
+      if (!state.routineLists.length) {
+        inner = chipRow + planEmpty("NO ROUTINES YET", "Create a routine like &quot;Chest &amp; Biceps&quot;<br>and fill it with the machines you use.");
+        addBtn = false;
+      } else if (r) {
+        var rIds = r.machineIds;
+        var rRows = rIds.length
+          ? rIds.map(function (id, idx) {
+              var m = state.machines.find(function (x) { return x.id === id; });
+              return m ? planRow(m, idx, rIds.length, "move-rt-up", "move-rt-dn", "remove-rt", iconStroke, iconAccent) : "";
+            }).join("")
+          : planEmpty("EMPTY ROUTINE", "Add the machines this routine uses.");
+        inner = chipRow +
+          '<div style="margin-top:24px;display:flex;align-items:center;gap:10px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(r.name.toUpperCase()) + '</span><span style="flex:1;height:1px;background:var(--border);"></span><button data-action="delete-routine" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;" class="hov-accent-text">Delete</button></div>' +
+          '<input id="input-routine-name" value="' + esc(r.name) + '" placeholder="NAME THIS ROUTINE" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:\'Doto\',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />' +
+          rRows;
+      } else {
+        inner = chipRow;
+        addBtn = false;
+      }
+    }
+    var bottom = addBtn
+      ? '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);"><button data-action="open-picker" class="hov-invert" style="width:100%;background:var(--text);border:none;color:var(--bg);font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">＋ Add Machines</button></div>'
+      : "";
+    return '<div style="flex:1;overflow:auto;padding:16px 22px 120px;">' + inner + '</div>' + bottom;
+  }
+
+  // ── PICKER (multi-select machines into the active day / routine) ──
+  function viewPicker(iconStroke, iconAccent) {
+    var week = state.orgMode === "week";
+    var ctxName = week
+      ? (state.dayNames[state.selectedDay] || DAYS_FULL[state.selectedDay])
+      : ((routineById(state.selectedRoutineId) || {}).name || "Routine");
+    var ctxKind = week ? DAYS_FULL[state.selectedDay] : "this routine";
+    var checked = function (id) { return week ? inDay(state.selectedDay, id) : inRoutine(state.selectedRoutineId, id); };
+    var count = week ? dayMachineIds(state.selectedDay).length : ((routineById(state.selectedRoutineId) || { machineIds: [] }).machineIds.length);
+    var q = state.pickerSearch.trim().toLowerCase();
+    var filt = state.machines.filter(function (m) { return !q || m.name.toLowerCase().includes(q); });
+    var groups = [];
+    GROUPS.forEach(function (g) {
+      var items = filt.filter(function (m) { return m.group === g; });
+      if (items.length) groups.push({ group: g, items: items });
+    });
+    var row = function (m) {
+      var on = checked(m.id);
+      var mark = on
+        ? '<span style="width:26px;height:26px;border-radius:50%;background:var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></span>'
+        : '<span style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;"></span>';
+      return '<div data-action="picker-toggle" data-id="' + esc(m.id) + '" style="display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;">' +
+        thumbHtml(m, 40, iconStroke, iconAccent) +
+        '<div style="flex:1;min-width:0;font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(m.name) + '</div>' + mark +
+      '</div>';
+    };
+    var listHtml = groups.map(function (g) {
+      return '<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;"><span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">' + esc(g.group) + '</span><span style="font-size:10px;color:var(--muted);">' + g.items.length + '</span><span style="flex:1;height:1px;background:var(--border);"></span></div>' + g.items.map(row).join("");
+    }).join("");
+    if (!groups.length) listHtml = '<div style="text-align:center;padding:50px 0;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div>';
+    return '<div class="screen" style="display:flex;flex-direction:column;">' +
+      '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">' +
+        '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
+        '<div style="min-width:0;"><div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Add to ' + esc(ctxKind) + '</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:26px;line-height:1;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(ctxName) + '</div></div>' +
+      '</div>' +
+      '<div style="padding:6px 22px 0;flex-shrink:0;"><div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg><input id="input-picker-search" value="' + esc(state.pickerSearch) + '" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" /></div></div>' +
+      '<div style="flex:1;overflow:auto;padding:6px 22px 120px;">' + listHtml + '</div>' +
+      '<div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);"><button data-action="go-home" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Done · ' + count + ' selected</button></div>' +
+    '</div>';
   }
 
   // ── MACHINE DETAIL ──
@@ -873,9 +1217,27 @@
           '</div>' + body + '</div>';
     }).join("");
 
-    var amFavDot = amFav
-      ? '<span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span>'
-      : '<span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--muted);"></span>';
+    // ASSIGNMENT — put this machine on weekdays (week mode) or in routines.
+    var assignHtml = "";
+    if (am) {
+      if (state.orgMode === "week") {
+        var dayToggles = DAYS.map(function (short, i) {
+          var on = inDay(i, am.id);
+          var st = "flex:1;min-width:0;text-align:center;padding:9px 0;border-radius:6px;cursor:pointer;font-family:'Doto',monospace;font-weight:700;font-size:12px;background:" + (on ? "var(--accent)" : "transparent") + ";color:" + (on ? "#fff" : "var(--muted)") + ";border:1px solid " + (on ? "var(--accent)" : "var(--border)") + ";";
+          return '<div data-action="toggle-day" data-i="' + i + '" style="' + st + '">' + short + '</div>';
+        }).join("");
+        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Week</div><div style="display:flex;gap:5px;">' + dayToggles + '</div></div>';
+      } else if (state.routineLists.length) {
+        var rtToggles = state.routineLists.map(function (r) {
+          var on = inRoutine(r.id, am.id);
+          var st = "background:" + (on ? "var(--accent)" : "transparent") + ";color:" + (on ? "#fff" : "var(--muted)") + ";border:1px solid " + (on ? "var(--accent)" : "var(--border)") + ";font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:9px 13px;border-radius:7px;cursor:pointer;";
+          return '<div data-action="toggle-rt-machine" data-id="' + esc(r.id) + '" style="' + st + '">' + esc(r.name) + '</div>';
+        }).join("");
+        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Routines</div><div style="display:flex;gap:6px;flex-wrap:wrap;">' + rtToggles + '</div></div>';
+      } else {
+        assignHtml = '<div style="margin-bottom:22px;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Routines</div><div style="font-size:11px;color:var(--muted);">No routines yet — create one in the Plan tab.</div></div>';
+      }
+    }
 
     var saveBar = state.draft.length > 0
       ? '<button data-action="save-session" class="hov-bright" style="width:100%;background:var(--accent);border:none;color:#fff;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;">Save Session ✓</button>'
@@ -902,11 +1264,11 @@
       '<div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">' +
         '<button data-action="go-home" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
-        '<button data-action="toggle-am-fav" class="hov-border-accent" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + amFavDot + '</button>' +
       '</div>' +
       '<div style="flex:1;overflow:auto;padding:4px 22px 120px;">' +
         '<div style="font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">' + esc(amGroup) + '</div>' +
-        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:20px;">' + esc(amName) + '</div>' +
+        '<div style="font-family:\'Doto\',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:18px;">' + esc(amName) + '</div>' +
+        assignHtml +
         heroHtml +
         '<div style="margin-top:22px;">' +
           '<div style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:12px;">' + esc(chartTitle) + '</div>' +
@@ -1001,6 +1363,9 @@
         '<div style="display:flex;gap:10px;margin-bottom:30px;">' + seg("Light", "theme-light", !isDark) + seg("Dark", "theme-dark", isDark) + '</div>' +
         '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Weight Unit</div>' +
         '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg("Kilograms", "unit-kg", ul === "kg") + unitSeg("Pounds", "unit-lb", ul === "lb") + '</div>' +
+        '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Plan Organization</div>' +
+        '<div style="font-size:10px;letter-spacing:0.02em;line-height:1.5;color:var(--muted);margin-bottom:11px;">' + (state.orgMode === "week" ? "Machines grouped by weekday in the Plan tab." : "Machines grouped into named routine lists.") + '</div>' +
+        '<div style="display:flex;gap:10px;margin-bottom:30px;">' + unitSeg("By Day", "org-week", state.orgMode === "week") + unitSeg("Routines", "org-routines", state.orgMode === "routines") + '</div>' +
         '<div style="font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Data &amp; Backup</div>' +
         '<div style="display:flex;gap:10px;">' +
           '<button data-action="export-backup" class="hov-accent" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;">⤓ Export</button>' +
@@ -1029,12 +1394,29 @@
     "auth-toggle": toggleAuthMode,
     "auth-passkey": authPasskey,
     "add-passkey": addPasskey,
+    "ob-mode": function (el) { setObMode(el.getAttribute("data-m")); },
+    "ob-unit": function (el) { setObUnit(el.getAttribute("data-u")); },
+    "finish-onboarding": finishOnboarding,
     "open-settings": openSettings,
     "open-add": openAdd,
+    "open-picker": openPicker,
     "go-home": goHome,
+    "go-week": goWeek,
+    "go-library": goLibrary,
     "open-machine": function (el) { openMachine(el.getAttribute("data-id")); },
-    "toggle-fav": function (el) { toggleFav(el.getAttribute("data-id")); },
-    "toggle-am-fav": function () { if (state.activeId) toggleFav(state.activeId); },
+    "select-day": function (el) { selectDay(+el.getAttribute("data-i")); },
+    "select-routine": function (el) { selectRoutine(el.getAttribute("data-id")); },
+    "create-routine": createRoutine,
+    "delete-routine": deleteRoutine,
+    "picker-toggle": function (el) { pickerToggle(el.getAttribute("data-id")); },
+    "toggle-day": function (el) { if (state.activeId) toggleDayMachine(+el.getAttribute("data-i"), state.activeId); },
+    "toggle-rt-machine": function (el) { if (state.activeId) toggleRoutineMachine(el.getAttribute("data-id"), state.activeId); },
+    "move-day-up": function (el) { moveInDay(state.selectedDay, +el.getAttribute("data-i"), -1); },
+    "move-day-dn": function (el) { moveInDay(state.selectedDay, +el.getAttribute("data-i"), 1); },
+    "remove-day": function (el) { removeFromDay(state.selectedDay, el.getAttribute("data-id")); },
+    "move-rt-up": function (el) { moveInRoutine(state.selectedRoutineId, +el.getAttribute("data-i"), -1); },
+    "move-rt-dn": function (el) { moveInRoutine(state.selectedRoutineId, +el.getAttribute("data-i"), 1); },
+    "remove-rt": function (el) { removeFromRoutine(state.selectedRoutineId, el.getAttribute("data-id")); },
     "add-set": addSet,
     "dup-set": duplicateLast,
     "rep-up": function (el) { repsDelta(+el.getAttribute("data-i"), 1); },
@@ -1055,6 +1437,8 @@
     "theme-dark": function () { setTheme("dark"); },
     "unit-kg": function () { setUnit("kg"); },
     "unit-lb": function () { setUnit("lb"); },
+    "org-week": setOrgWeek,
+    "org-routines": setOrgRoutines,
     "export-backup": exportBackup,
     "delete-account": deleteAccount,
     "logout": logout,
@@ -1072,6 +1456,9 @@
     if (id === "input-email") { state.emailDraft = e.target.value; state.loginError = ""; render(); }
     else if (id === "input-password") { state.passwordDraft = e.target.value; state.loginError = ""; render(); }
     else if (id === "input-search") { state.search = e.target.value; render(); }
+    else if (id === "input-picker-search") { state.pickerSearch = e.target.value; render(); }
+    else if (id === "input-day-name") { setDayName(e.target.value); }
+    else if (id === "input-routine-name") { setRoutineName(e.target.value); }
     else if (id === "input-addname") { state.addName = e.target.value; render(); }
   });
 
