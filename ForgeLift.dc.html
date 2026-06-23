@@ -19,6 +19,7 @@
   ::-webkit-scrollbar { width: 0; height: 0; }
   @keyframes rl-pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
   @keyframes rl-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @keyframes rl-sheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
 </style>
 </helmet>
 <template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#000"/><circle cx="50" cy="38" r="11" fill="#D71921"/><rect x="34" y="58" width="32" height="5" rx="2.5" fill="#fff"/><rect x="40" y="68" width="20" height="5" rx="2.5" fill="#fff"/></svg></template>
@@ -56,26 +57,183 @@
       </div>
       </sc-if>
 
-      <!-- ══════════════ HOME ══════════════ -->
+      <!-- ══════════════ ONBOARDING (FIRST SIGN-IN) ══════════════ -->
+      <sc-if value="{{ showOnboarding }}">
+      <div style="height:100%;display:flex;flex-direction:column;background-image:radial-gradient(var(--dot) 1px,transparent 1px);background-size:22px 22px;">
+        <div style="flex:1;overflow:auto;padding:58px 26px 30px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span style="width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;"></span>
+            <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:var(--muted);">Quick Setup</span>
+          </div>
+          <div style="font-family:'Doto',monospace;font-weight:900;font-size:40px;line-height:0.9;letter-spacing:0.01em;color:var(--text);margin-bottom:8px;">LET'S SET<br>YOU UP</div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.04em;line-height:1.6;color:var(--muted);margin-bottom:30px;">Two quick choices. You can change both later in Settings.</div>
+
+          <!-- Q1 · organization -->
+          <div style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:5px;">How do you train?</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.04em;color:var(--muted);margin-bottom:13px;">Pick how you want to organize your machines.</div>
+          <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:30px;">
+            <div onClick="{{ setObModeWeek }}" style="{{ obCardWeek }}">
+              <span style="{{ obWeekDot }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4"><path d="M5 12l5 5L20 6"></path></svg></span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:'Doto',monospace;font-weight:700;font-size:17px;letter-spacing:0.04em;color:var(--text);margin-bottom:4px;">BY DAY OF THE WEEK</div>
+                <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.02em;line-height:1.55;color:var(--muted);">A list of machines for each weekday you train — e.g. Monday chest, Wednesday legs.</div>
+              </div>
+            </div>
+            <div onClick="{{ setObModeRoutines }}" style="{{ obCardRoutines }}">
+              <span style="{{ obRoutinesDot }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4"><path d="M5 12l5 5L20 6"></path></svg></span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:'Doto',monospace;font-weight:700;font-size:17px;letter-spacing:0.04em;color:var(--text);margin-bottom:4px;">BY ROUTINE LISTS</div>
+                <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.02em;line-height:1.55;color:var(--muted);">Named lists like Chest &amp; Biceps or Back &amp; Abs — no fixed day required.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Q2 · units -->
+          <div style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);margin-bottom:5px;">Preferred units</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.04em;color:var(--muted);margin-bottom:13px;">How should we show weights?</div>
+          <div style="display:flex;gap:11px;">
+            <button onClick="{{ setObUnitKg }}" style="{{ obUnitKg }}">Kilograms · kg</button>
+            <button onClick="{{ setObUnitLb }}" style="{{ obUnitLb }}">Pounds · lb</button>
+          </div>
+        </div>
+        <div style="flex-shrink:0;padding:14px 26px 30px;background:linear-gradient(to top,var(--bg) 70%,transparent);">
+          <button onClick="{{ finishOnboarding }}" style="{{ obBtnStyle }}">{{ obBtnLabel }}</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ══════════════ HOME (WEEK / LIBRARY) ══════════════ -->
       <sc-if value="{{ showHome }}">
       <div style="height:100%;display:flex;flex-direction:column;">
-        <div style="padding:54px 22px 12px;flex-shrink:0;">
+        <div style="padding:54px 22px 0;flex-shrink:0;">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;">
             <div>
               <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">{{ greeting }}</div>
-              <div style="font-family:'Doto',monospace;font-weight:900;font-size:38px;line-height:0.95;color:var(--text);">MACHINES</div>
+              <div style="font-family:'Doto',monospace;font-weight:900;font-size:38px;line-height:0.95;color:var(--text);">{{ homeTitle }}</div>
             </div>
             <button onClick="{{ openSettings }}" style="width:42px;height:42px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             </button>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button onClick="{{ goWeek }}" style="{{ weekTabStyle }}">Plan</button>
+            <button onClick="{{ goLibrary }}" style="{{ libTabStyle }}">Library</button>
+          </div>
+        </div>
+
+        <!-- ───── WEEK TAB ───── -->
+        <sc-if value="{{ tabWeek }}">
+        <div style="flex:1;overflow:auto;padding:16px 22px 120px;">
+          <sc-if value="{{ modeWeek }}">
+          <div style="display:flex;gap:6px;">
+            <sc-for list="{{ days }}" as="d" hint-placeholder-count="7">
+              <div onClick="{{ d.onSelect }}" style="{{ d.pillStyle }}">
+                <span style="{{ d.labelStyle }}">{{ d.short }}</span>
+                <span style="{{ d.countStyle }}">{{ d.countText }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="margin-top:24px;display:flex;align-items:center;gap:10px;">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">{{ selDayLabel }}</span>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+          </div>
+          <input value="{{ dayName }}" onInput="{{ onDayNameInput }}" placeholder="NAME THIS DAY · E.G. CHEST & ARMS" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:'Doto',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />
+
+          <sc-if value="{{ dayIsRest }}">
+          <div style="margin-top:22px;border:1px dashed var(--border);border-radius:8px;padding:46px 22px;text-align:center;">
+            <div style="font-family:'Doto',monospace;font-weight:900;font-size:30px;letter-spacing:0.1em;color:var(--muted);margin-bottom:10px;">REST DAY</div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.06em;line-height:1.6;color:var(--muted);">Nothing planned yet.<br>Add the machines you'll use on this day.</div>
+          </div>
+          </sc-if>
+
+          <sc-for list="{{ dayMachines }}" as="m" hint-placeholder-count="3">
+            <div style="margin-top:10px;display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--border);">
+              <span style="font-family:'Doto',monospace;font-weight:700;font-size:14px;color:var(--muted);width:22px;flex-shrink:0;">{{ m.posLabel }}</span>
+              <div onClick="{{ m.onOpen }}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;cursor:pointer;">
+                <sc-if value="{{ m.photo }}"><img src="{{ m.photo }}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);" /></sc-if>
+                <sc-if value="{{ m.noPhoto }}"><div style="width:40px;height:40px;border-radius:4px;flex-shrink:0;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="{{ m.icon }}" style="width:100%;height:100%;object-fit:contain;display:block;" /></div></sc-if>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15px;color:var(--text);letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.name }}</div>
+                  <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">{{ m.detail }}</div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;flex-shrink:0;">
+                <button onClick="{{ m.onUp }}" style="{{ m.upStyle }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 15l6-6 6 6"></path></svg></button>
+                <button onClick="{{ m.onDown }}" style="{{ m.downStyle }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"></path></svg></button>
+              </div>
+              <button onClick="{{ m.onRemove }}" style="width:30px;height:30px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);color:var(--accent);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+            </div>
+          </sc-for>
+          </sc-if>
+
+          <sc-if value="{{ modeRoutines }}">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <sc-for list="{{ routineChips }}" as="r" hint-placeholder-count="3">
+              <button onClick="{{ r.onSelect }}" style="{{ r.chipStyle }}">{{ r.label }}<span style="{{ r.countStyle }}">{{ r.countText }}</span></button>
+            </sc-for>
+            <button onClick="{{ createRoutine }}" style="flex:none;display:flex;align-items:center;gap:6px;background:transparent;border:1px dashed var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:10px 14px;border-radius:7px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">＋ New</button>
+          </div>
+
+          <sc-if value="{{ noRoutines }}">
+          <div style="margin-top:22px;border:1px dashed var(--border);border-radius:8px;padding:46px 22px;text-align:center;">
+            <div style="font-family:'Doto',monospace;font-weight:900;font-size:26px;letter-spacing:0.06em;color:var(--muted);margin-bottom:10px;">NO ROUTINES YET</div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.06em;line-height:1.6;color:var(--muted);">Create a routine like &quot;Chest &amp; Biceps&quot;<br>and fill it with the machines you use.</div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ hasSelRoutine }}">
+          <div style="margin-top:24px;display:flex;align-items:center;gap:10px;">
+            <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">{{ routineLabel }}</span>
+            <span style="flex:1;height:1px;background:var(--border);"></span>
+            <button onClick="{{ deleteRoutine }}" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;" style-hover="color:var(--accent);">Delete</button>
+          </div>
+          <input value="{{ routineName }}" onInput="{{ onRoutineNameInput }}" placeholder="NAME THIS ROUTINE · E.G. CHEST & BICEPS" style="width:100%;margin-top:12px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:'Doto',monospace;font-weight:700;font-size:22px;letter-spacing:0.04em;padding:4px 0 9px;outline:none;text-transform:uppercase;" />
+
+          <sc-if value="{{ routineIsEmpty }}">
+          <div style="margin-top:22px;border:1px dashed var(--border);border-radius:8px;padding:40px 22px;text-align:center;">
+            <div style="font-family:'Doto',monospace;font-weight:900;font-size:24px;letter-spacing:0.06em;color:var(--muted);margin-bottom:10px;">EMPTY ROUTINE</div>
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.06em;line-height:1.6;color:var(--muted);">Add the machines this routine uses.</div>
+          </div>
+          </sc-if>
+
+          <sc-for list="{{ routineMachines }}" as="m" hint-placeholder-count="3">
+            <div style="margin-top:10px;display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--border);">
+              <span style="font-family:'Doto',monospace;font-weight:700;font-size:14px;color:var(--muted);width:22px;flex-shrink:0;">{{ m.posLabel }}</span>
+              <div onClick="{{ m.onOpen }}" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;cursor:pointer;">
+                <sc-if value="{{ m.photo }}"><img src="{{ m.photo }}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);" /></sc-if>
+                <sc-if value="{{ m.noPhoto }}"><div style="width:40px;height:40px;border-radius:4px;flex-shrink:0;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="{{ m.icon }}" style="width:100%;height:100%;object-fit:contain;display:block;" /></div></sc-if>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15px;color:var(--text);letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.name }}</div>
+                  <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">{{ m.detail }}</div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;flex-shrink:0;">
+                <button onClick="{{ m.onUp }}" style="{{ m.upStyle }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 15l6-6 6 6"></path></svg></button>
+                <button onClick="{{ m.onDown }}" style="{{ m.downStyle }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"></path></svg></button>
+              </div>
+              <button onClick="{{ m.onRemove }}" style="width:30px;height:30px;flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);color:var(--accent);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+            </div>
+          </sc-for>
+          </sc-if>
+          </sc-if>
+        </div>
+        <sc-if value="{{ showAddBtn }}">
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">
+          <button onClick="{{ openPicker }}" style="width:100%;background:var(--text);border:none;color:var(--bg);font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="background:var(--accent);color:#fff;">＋ Add Machines</button>
+        </div>
+        </sc-if>
+        </sc-if>
+
+        <!-- ───── LIBRARY TAB ───── -->
+        <sc-if value="{{ tabLibrary }}">
+        <div style="padding:16px 22px 0;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>
             <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" />
           </div>
         </div>
-
-        <div style="flex:1;overflow:auto;padding:6px 22px 110px;">
+        <div style="flex:1;overflow:auto;padding:6px 22px 120px;">
           <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
             <div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">
               <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">{{ g.group }}</span>
@@ -90,18 +248,59 @@
                   <div style="font-size:15px;color:var(--text);letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.name }}</div>
                   <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:2px;">Last · {{ m.detail }}</div>
                 </div>
-                <button onClick="{{ m.onFav }}" style="width:34px;height:34px;flex-shrink:0;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                  <sc-if value="{{ m.fav }}"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span></sc-if>
-                  <sc-if value="{{ m.notFav }}"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);"></span></sc-if>
-                </button>
+                <sc-if value="{{ m.hasDays }}"><span style="font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;flex-shrink:0;">{{ m.daysText }}</span></sc-if>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex-shrink:0;"><path d="M9 5l7 7-7 7"></path></svg>
               </div>
             </sc-for>
           </sc-for>
           <sc-if value="{{ noResults }}"><div style="text-align:center;padding:50px 0;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div></sc-if>
         </div>
-
         <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">
-          <button onClick="{{ openAdd }}" style="width:100%;background:var(--text);border:none;color:var(--bg);font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="background:var(--accent);color:#fff;">＋ Add Machine</button>
+          <button onClick="{{ openAdd }}" style="width:100%;background:var(--text);border:none;color:var(--bg);font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="background:var(--accent);color:#fff;">＋ New Machine</button>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- ══════════════ PICKER ══════════════ -->
+      <sc-if value="{{ showPicker }}">
+      <div style="height:100%;display:flex;flex-direction:column;">
+        <div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;gap:14px;">
+          <button onClick="{{ goHome }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-hover="border-color:var(--accent);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg>
+          </button>
+          <div style="min-width:0;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Add to {{ pickerDay }}</div>
+            <div style="font-family:'Doto',monospace;font-weight:900;font-size:26px;line-height:1;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ pickerName }}</div>
+          </div>
+        </div>
+        <div style="padding:6px 22px 0;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:0 14px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>
+            <input value="{{ pickerSearch }}" onInput="{{ onPickerSearch }}" placeholder="SEARCH MACHINES" style="flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:13px;letter-spacing:0.08em;padding:13px 0;text-transform:uppercase;" />
+          </div>
+        </div>
+        <div style="flex:1;overflow:auto;padding:6px 22px 120px;">
+          <sc-for list="{{ pickerGroups }}" as="g" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">
+              <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:var(--text);">{{ g.group }}</span>
+              <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">{{ g.count }}</span>
+              <span style="flex:1;height:1px;background:var(--border);"></span>
+            </div>
+            <sc-for list="{{ g.items }}" as="m" hint-placeholder-count="3">
+              <div onClick="{{ m.onToggle }}" style="display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+                <sc-if value="{{ m.photo }}"><img src="{{ m.photo }}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);" /></sc-if>
+                <sc-if value="{{ m.noPhoto }}"><div style="width:40px;height:40px;border-radius:4px;flex-shrink:0;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;padding:5px;box-sizing:border-box;"><img src="{{ m.icon }}" style="width:100%;height:100%;object-fit:contain;display:block;" /></div></sc-if>
+                <div style="flex:1;min-width:0;font-size:15px;color:var(--text);letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.name }}</div>
+                <sc-if value="{{ m.checked }}"><span style="width:26px;height:26px;border-radius:50%;background:var(--accent);flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></span></sc-if>
+                <sc-if value="{{ m.unchecked }}"><span style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;"></span></sc-if>
+              </div>
+            </sc-for>
+          </sc-for>
+          <sc-if value="{{ pickerNoResults }}"><div style="text-align:center;padding:50px 0;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:0.1em;color:var(--muted);">NO MACHINES FOUND</div></sc-if>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 22px 30px;background:linear-gradient(to top,var(--bg) 60%,transparent);">
+          <button onClick="{{ goHome }}" style="width:100%;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">{{ pickerDoneLabel }}</button>
         </div>
       </div>
       </sc-if>
@@ -110,18 +309,42 @@
       <sc-if value="{{ showMachine }}">
       <div style="height:100%;display:flex;flex-direction:column;">
         <div style="padding:54px 22px 12px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
-          <button onClick="{{ goHome }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
+          <button onClick="{{ goHome }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-hover="border-color:var(--accent);">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5l-7 7 7 7"></path></svg>
           </button>
-          <button onClick="{{ onToggleAmFav }}" style="width:42px;height:42px;background:transparent;border:1px solid var(--border);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="border-color:var(--accent);">
-            <sc-if value="{{ amFav }}"><span style="width:16px;height:16px;border-radius:50%;background:var(--accent);"></span></sc-if>
-            <sc-if value="{{ amNotFav }}"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--muted);"></span></sc-if>
-          </button>
+
         </div>
 
         <div style="flex:1;overflow:auto;padding:4px 22px 120px;">
           <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">{{ amGroup }}</div>
-          <div style="font-family:'Doto',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:20px;">{{ amName }}</div>
+          <div style="font-family:'Doto',monospace;font-weight:900;font-size:34px;line-height:1.0;color:var(--text);margin-bottom:18px;">{{ amName }}</div>
+
+          <!-- ASSIGNMENT: days or routines -->
+          <sc-if value="{{ modeWeek }}">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Week</div>
+            <div style="display:flex;gap:5px;">
+              <sc-for list="{{ weekDays }}" as="wd" hint-placeholder-count="7">
+                <div onClick="{{ wd.onToggle }}" style="{{ wd.style }}">{{ wd.short }}</div>
+              </sc-for>
+            </div>
+          </div>
+          </sc-if>
+          <sc-if value="{{ modeRoutines }}">
+          <div style="margin-bottom:22px;">
+            <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;">In Your Routines</div>
+            <sc-if value="{{ hasAnyRoutine }}">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <sc-for list="{{ routineToggles }}" as="rt" hint-placeholder-count="3">
+                <div onClick="{{ rt.onToggle }}" style="{{ rt.style }}">{{ rt.label }}</div>
+              </sc-for>
+            </div>
+            </sc-if>
+            <sc-if value="{{ noAnyRoutine }}">
+            <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.04em;color:var(--muted);">No routines yet — create one in the Plan tab.</div>
+            </sc-if>
+          </div>
+          </sc-if>
 
           <!-- HERO · strength: single personal best -->
           <sc-if value="{{ heroStrength }}">
@@ -175,7 +398,6 @@
                 <span style="font-family:'Doto',monospace;font-weight:700;font-size:15px;letter-spacing:0.1em;color:var(--text);">{{ s.entryLabel }}</span>
                 <button onClick="{{ s.onRem }}" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.1em;" style-hover="color:var(--accent);">REMOVE</button>
               </div>
-              <!-- STRENGTH: reps + weight -->
               <sc-if value="{{ s.strength }}">
               <div style="display:flex;gap:10px;">
                 <div style="flex:1;">
@@ -196,7 +418,6 @@
                 </div>
               </div>
               </sc-if>
-              <!-- CARDIO: duration + distance + calories -->
               <sc-if value="{{ s.cardio }}">
               <div style="display:flex;gap:10px;">
                 <div style="flex:1;">
@@ -224,7 +445,6 @@
                   <button onClick="{{ s.onCalUp }}" style="width:38px;height:42px;background:var(--bg);border:none;border-left:1px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;" style-hover="background:var(--accent);color:#fff;">+</button>
                 </div>
               </div>
-              <!-- live pace / speed readout -->
               <sc-if value="{{ s.paceShow }}">
               <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;">
                 <span style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">Pace</span>
@@ -242,7 +462,6 @@
             <button onClick="{{ onDup }}" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;padding:14px;border-radius:4px;cursor:pointer;" style-hover="border-color:var(--accent);color:var(--accent);">⎘ Duplicate Last</button>
           </div>
 
-          <!-- HISTORY -->
           <sc-if value="{{ hasHistory }}">
           <div style="margin-top:28px;display:flex;align-items:center;gap:10px;">
             <span style="font-family:'Space Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--text);">History</span>
@@ -264,6 +483,8 @@
           <sc-if value="{{ canSave }}"><button onClick="{{ onSave }}" style="width:100%;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;" style-hover="filter:brightness(1.12);">Save Session ✓</button></sc-if>
           <sc-if value="{{ cantSave }}"><div style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;">{{ cantSaveText }}</div></sc-if>
         </div>
+
+
       </div>
       </sc-if>
 
@@ -336,6 +557,15 @@
             <sc-if value="{{ unitNotLb }}"><button onClick="{{ setUnitLb }}" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Pounds</button></sc-if>
           </div>
 
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Plan Organization</div>
+          <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.02em;line-height:1.5;color:var(--muted);opacity:0.85;margin-bottom:11px;text-transform:none;">{{ orgModeHint }}</div>
+          <div style="display:flex;gap:10px;margin-bottom:30px;">
+            <sc-if value="{{ unitModeWeekOn }}"><button onClick="{{ setModeWeek }}" style="flex:1;background:var(--accent);color:#fff;border:1px solid var(--accent);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">By Day</button></sc-if>
+            <sc-if value="{{ unitModeWeekOff }}"><button onClick="{{ setModeWeek }}" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">By Day</button></sc-if>
+            <sc-if value="{{ unitModeRoutinesOn }}"><button onClick="{{ setModeRoutines }}" style="flex:1;background:var(--accent);color:#fff;border:1px solid var(--accent);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Routines</button></sc-if>
+            <sc-if value="{{ unitModeRoutinesOff }}"><button onClick="{{ setModeRoutines }}" style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;padding:15px;border-radius:4px;cursor:pointer;">Routines</button></sc-if>
+          </div>
+
           <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;">Account</div>
           <div style="display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:15px;margin-bottom:14px;">
             <div style="width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'Doto',monospace;font-weight:900;font-size:20px;color:#fff;">{{ userInitial }}</div>
@@ -357,46 +587,45 @@ class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.state = {
-      screen: 'login', theme: 'dark', unit: 'kg', user: null,
+      screen: 'login', tab: 'week', theme: 'dark', unit: 'kg', user: null,
       emailDraft: '', passwordDraft: '', authMode: 'signin', loginError: '',
-      machines: [], logs: {}, activeId: null, draft: [], search: '',
+      machines: [], logs: {}, routine: {}, dayNames: {}, selectedDay: 0,
+      orgMode: 'week', routineLists: [], selectedRoutineId: null,
+      onboarded: false, obMode: null, obUnit: null, showHowTo: false,
+      activeId: null, draft: [], search: '', pickerSearch: '',
       addName: '', addGroup: 'Chest', addPhoto: null,
     };
     this.LB = 0.45359237;
-    this.MI = 1.609344; // kilometres per mile
+    this.MI = 1.609344;
     this.GROUPS = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core', 'Cardio'];
+    this.DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    this.DAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   }
 
-  // ── seed data ──
+  todayIdx() { return (new Date().getDay() + 6) % 7; }
+
   seed() {
     const base = [
-      // Chest
       ['Chest Press','Chest'],['Incline Press','Chest'],['Decline Press','Chest'],
       ['Pec Deck','Chest'],['Cable Crossover','Chest'],['Assisted Dip','Chest'],
-      // Back
       ['Lat Pulldown','Back'],['Seated Row','Back'],['T-Bar Row','Back'],['Machine Row','Back'],
       ['Assisted Pull-Up','Back'],['Back Extension','Back'],['Lat Pullover','Back'],
-      // Legs
       ['Leg Press','Legs'],['Hack Squat','Legs'],['Leg Extension','Legs'],['Leg Curl','Legs'],
       ['Calf Raise','Legs'],['Hip Abduction','Legs'],['Hip Adduction','Legs'],
       ['Glute Kickback','Legs'],['Hip Thrust','Legs'],
-      // Shoulders
       ['Shoulder Press','Shoulders'],['Lateral Raise','Shoulders'],['Rear Delt Fly','Shoulders'],
       ['Front Raise','Shoulders'],['Shrug','Shoulders'],['Upright Row','Shoulders'],
-      // Arms
       ['Bicep Curl','Arms'],['Preacher Curl','Arms'],['Cable Curl','Arms'],['Hammer Curl','Arms'],
       ['Tricep Pushdown','Arms'],['Tricep Extension','Arms'],
-      // Core
       ['Ab Crunch','Core'],['Cable Crunch','Core'],['Rotary Torso','Core'],
       ['Hanging Leg Raise','Core'],['Roman Chair','Core'],
-      // Cardio
       ['Treadmill','Cardio'],['Stationary Bike','Cardio'],['Recumbent Bike','Cardio'],
       ['Spin Bike','Cardio'],['Elliptical','Cardio'],['Rowing Machine','Cardio'],
       ['Stair Climber','Cardio'],['Air Bike','Cardio'],['Ski Erg','Cardio'],['Arc Trainer','Cardio'],
     ];
-    const machines = base.map((b, i) => ({ id: 'm' + i, name: b[0], group: b[1], fav: false, photo: null }));
+    const machines = base.map((b, i) => ({ id: 'm' + i, name: b[0], group: b[1], photo: null }));
     const byName = (nm) => machines.find(m => m.name === nm);
-    ['Chest Press', 'Lat Pulldown', 'Leg Press', 'Treadmill'].forEach(nm => { const m = byName(nm); if (m) m.fav = true; });
+    const idOf = (nm) => (byName(nm) || {}).id;
     const now = Date.now(), day = 86400000;
     const dstr = (w) => new Date(now - w * 7 * day).toISOString().slice(0, 10);
     const series = (n, start, step) => {
@@ -411,7 +640,6 @@ class Component extends DCLogic {
       }
       return out;
     };
-    // Cardio history: one interval per session, time & distance climbing over weeks.
     const cardioSeries = (n, startMin, stepMin, startKm, stepKm) => {
       const out = [];
       for (let k = 0; k < n; k++) {
@@ -422,57 +650,160 @@ class Component extends DCLogic {
       }
       return out;
     };
-    const idOf = (nm) => (byName(nm) || {}).id;
     const logs = {};
     logs[idOf('Chest Press')] = series(8, 40, 2.5);
     logs[idOf('Lat Pulldown')] = series(7, 45, 2.5);
     logs[idOf('Leg Press')] = series(8, 80, 5);
     logs[idOf('Treadmill')] = cardioSeries(8, 20, 2, 3, 0.4);
-    return { machines, logs };
+
+    const pick = (names) => names.map(idOf).filter(Boolean);
+    const routine = {
+      0: pick(['Chest Press', 'Incline Press', 'Pec Deck', 'Bicep Curl', 'Tricep Pushdown']),
+      2: pick(['Leg Press', 'Hack Squat', 'Leg Extension', 'Leg Curl', 'Calf Raise']),
+      4: pick(['Lat Pulldown', 'Seated Row', 'Back Extension', 'Treadmill']),
+    };
+    const dayNames = { 0: 'Chest & Arms', 2: 'Legs', 4: 'Back & Cardio' };
+    const routineLists = [
+      { id: 'r1', name: 'Chest & Biceps', machineIds: pick(['Chest Press', 'Incline Press', 'Pec Deck', 'Bicep Curl', 'Cable Curl']) },
+      { id: 'r2', name: 'Back & Abs', machineIds: pick(['Lat Pulldown', 'Seated Row', 'Ab Crunch', 'Cable Crunch']) },
+      { id: 'r3', name: 'Leg Day', machineIds: pick(['Leg Press', 'Leg Extension', 'Leg Curl', 'Calf Raise']) },
+    ];
+    return { machines, logs, routine, dayNames, routineLists };
   }
 
   persist(patch) {
     const u = (patch && patch.user) || this.state.user;
     if (!u) return;
     const s = Object.assign({}, this.state, patch || {});
-    try { localStorage.setItem('replog:' + u.toLowerCase(), JSON.stringify({ machines: s.machines, logs: s.logs, unit: s.unit, theme: s.theme })); } catch (e) {}
+    try { localStorage.setItem('replog:' + u.toLowerCase(), JSON.stringify({ machines: s.machines, logs: s.logs, routine: s.routine, dayNames: s.dayNames, orgMode: s.orgMode, routineLists: s.routineLists, unit: s.unit, theme: s.theme, onboarded: s.onboarded })); } catch (e) {}
   }
   save(patch) { this.setState(patch, () => this.persist()); }
 
-  // ── login ──
   onEmailInput = (e) => this.setState({ emailDraft: e.target.value, loginError: '' });
   onPasswordInput = (e) => this.setState({ passwordDraft: e.target.value, loginError: '' });
   toggleAuthMode = () => this.setState({ authMode: this.state.authMode === 'signup' ? 'signin' : 'signup', loginError: '' });
-  // Visual mock: Claude Design has no Supabase backend, so any sign-in / passkey
-  // tap enters the app with a freshly-seeded demo profile so the rest of the
-  // interface (machines, cardio, settings…) is explorable while designing.
+  loadSaved(name) {
+    try { const raw = localStorage.getItem('replog:' + name.toLowerCase()); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
   doAuth = () => {
-    const data = this.seed();
     const email = (this.state.emailDraft || '').trim();
     const name = email ? email.split('@')[0] : 'demo';
-    this.setState({
-      user: name, machines: data.machines, logs: data.logs,
-      screen: 'home', loginError: '', emailDraft: '', passwordDraft: '',
+    const data = this.seed();
+    const saved = this.loadSaved(name);
+    const base = {
+      user: name, selectedDay: this.todayIdx(),
+      loginError: '', emailDraft: '', passwordDraft: '', tab: 'week',
+    };
+    if (saved && saved.onboarded) {
+      // returning user — restore their data + preferences, skip onboarding
+      this.setState(Object.assign({}, base, {
+        machines: saved.machines || data.machines, logs: saved.logs || data.logs,
+        routine: saved.routine || {}, dayNames: saved.dayNames || {},
+        routineLists: saved.routineLists || data.routineLists,
+        selectedRoutineId: ((saved.routineLists || data.routineLists)[0] || {}).id || null,
+        orgMode: saved.orgMode || 'week', unit: saved.unit || 'kg', theme: saved.theme || this.state.theme,
+        screen: 'home',
+      }));
+    } else {
+      // first sign-in — seed data, then ask org mode + units
+      this.setState(Object.assign({}, base, {
+        machines: data.machines, logs: data.logs,
+        routine: data.routine, dayNames: data.dayNames,
+        routineLists: data.routineLists, selectedRoutineId: (data.routineLists[0] || {}).id || null,
+        screen: 'onboarding', obMode: null, obUnit: null,
+      }));
+    }
+  };
+  setObMode(m) { this.setState({ obMode: m }); }
+  setObUnit(u) { this.setState({ obUnit: u }); }
+  finishOnboarding = () => {
+    if (!this.state.obMode || !this.state.obUnit) return;
+    this.setState({ orgMode: this.state.obMode, unit: this.state.obUnit, onboarded: true, screen: 'home', tab: 'week' }, () => {
+      // persist with onboarded flag so this user skips setup next time
+      try { localStorage.setItem('replog:' + this.state.user.toLowerCase(), JSON.stringify({ machines: this.state.machines, logs: this.state.logs, routine: this.state.routine, dayNames: this.state.dayNames, orgMode: this.state.orgMode, routineLists: this.state.routineLists, unit: this.state.unit, theme: this.state.theme, onboarded: true })); } catch (e) {}
     });
   };
-  logout = () => this.setState({ screen: 'login', user: null, machines: [], logs: {}, activeId: null, draft: [], emailDraft: '', passwordDraft: '', authMode: 'signin', search: '' });
+  logout = () => this.setState({ screen: 'login', tab: 'week', user: null, machines: [], logs: {}, routine: {}, dayNames: {}, orgMode: 'week', routineLists: [], selectedRoutineId: null, onboarded: false, obMode: null, obUnit: null, activeId: null, draft: [], emailDraft: '', passwordDraft: '', authMode: 'signin', search: '', pickerSearch: '' });
 
-  // ── nav ──
+  goWeek = () => this.setState({ tab: 'week' });
+  goLibrary = () => this.setState({ tab: 'library', search: '' });
   openSettings = () => this.setState({ screen: 'settings' });
   openAdd = () => this.setState({ screen: 'add', addName: '', addPhoto: null, addGroup: 'Chest' });
+  openPicker = () => this.setState({ screen: 'picker', pickerSearch: '' });
   goHome = () => this.setState({ screen: 'home', search: '' });
-  openMachine(id) { this.setState({ activeId: id, draft: [], screen: 'machine' }); }
+  openMachine(id) { this.setState({ activeId: id, draft: [], screen: 'machine', showHowTo: false }); }
+  openHowTo = () => this.setState({ showHowTo: true });
+  closeHowTo = () => this.setState({ showHowTo: false });
+  stop = (e) => { if (e && e.stopPropagation) e.stopPropagation(); };
   onSearch = (e) => this.setState({ search: e.target.value });
+  onPickerSearch = (e) => this.setState({ pickerSearch: e.target.value });
+  selectDay(i) { this.setState({ selectedDay: i }); }
 
-  // ── favorites ──
-  toggleFav(id) { this.save({ machines: this.state.machines.map(m => m.id === id ? Object.assign({}, m, { fav: !m.fav }) : m) }); }
+  dayMachineIds(i) { return this.state.routine[i] || []; }
+  inDay(i, id) { return this.dayMachineIds(i).indexOf(id) !== -1; }
+  machineDays(id) { const out = []; for (let i = 0; i < 7; i++) { if (this.inDay(i, id)) out.push(this.DAYS[i]); } return out; }
+  toggleDayMachine(i, id) {
+    const cur = this.dayMachineIds(i);
+    const next = cur.indexOf(id) !== -1 ? cur.filter(x => x !== id) : cur.concat([id]);
+    this.save({ routine: Object.assign({}, this.state.routine, { [i]: next }) });
+  }
+  removeFromDay(i, id) {
+    this.save({ routine: Object.assign({}, this.state.routine, { [i]: this.dayMachineIds(i).filter(x => x !== id) }) });
+  }
+  moveInDay(i, idx, dir) {
+    const cur = this.dayMachineIds(i).slice();
+    const j = idx + dir;
+    if (j < 0 || j >= cur.length) return;
+    const tmp = cur[idx]; cur[idx] = cur[j]; cur[j] = tmp;
+    this.save({ routine: Object.assign({}, this.state.routine, { [i]: cur }) });
+  }
+  onDayNameInput = (e) => { this.save({ dayNames: Object.assign({}, this.state.dayNames, { [this.state.selectedDay]: e.target.value }) }); };
 
-  // ── machine kind ──
-  // Cardio machines log time/distance/calories instead of reps/weight; keyed off the group.
+  // ── routine lists (day-independent organization) ──
+  routineById(id) { return this.state.routineLists.find(r => r.id === id) || null; }
+  inRoutine(rid, mid) { const r = this.routineById(rid); return !!r && r.machineIds.indexOf(mid) !== -1; }
+  machineRoutines(mid) { return this.state.routineLists.filter(r => r.machineIds.indexOf(mid) !== -1); }
+  selectRoutine(id) { this.setState({ selectedRoutineId: id }); }
+  setModeWeek = () => this.save({ orgMode: 'week' });
+  setModeRoutines = () => {
+    const cur = this.state.selectedRoutineId && this.routineById(this.state.selectedRoutineId) ? this.state.selectedRoutineId : (this.state.routineLists[0] ? this.state.routineLists[0].id : null);
+    this.save({ orgMode: 'routines', selectedRoutineId: cur });
+  };
+  toggleRoutineMachine(rid, mid) {
+    const next = this.state.routineLists.map(r => r.id === rid ? Object.assign({}, r, { machineIds: r.machineIds.indexOf(mid) !== -1 ? r.machineIds.filter(x => x !== mid) : r.machineIds.concat([mid]) }) : r);
+    this.save({ routineLists: next });
+  }
+  removeFromRoutine(rid, mid) {
+    const next = this.state.routineLists.map(r => r.id === rid ? Object.assign({}, r, { machineIds: r.machineIds.filter(x => x !== mid) }) : r);
+    this.save({ routineLists: next });
+  }
+  moveInRoutine(rid, idx, dir) {
+    const next = this.state.routineLists.map(r => {
+      if (r.id !== rid) return r;
+      const arr = r.machineIds.slice(); const j = idx + dir; if (j < 0 || j >= arr.length) return r;
+      const t = arr[idx]; arr[idx] = arr[j]; arr[j] = t; return Object.assign({}, r, { machineIds: arr });
+    });
+    this.save({ routineLists: next });
+  }
+  renameRoutine = (e) => {
+    const name = e.target.value;
+    const next = this.state.routineLists.map(r => r.id === this.state.selectedRoutineId ? Object.assign({}, r, { name }) : r);
+    this.save({ routineLists: next });
+  };
+  createRoutine = () => {
+    const id = 'r' + Date.now();
+    const next = this.state.routineLists.concat([{ id, name: 'Routine ' + (this.state.routineLists.length + 1), machineIds: [] }]);
+    this.save({ routineLists: next, selectedRoutineId: id });
+  };
+  deleteRoutine = () => {
+    const id = this.state.selectedRoutineId;
+    const next = this.state.routineLists.filter(r => r.id !== id);
+    this.save({ routineLists: next, selectedRoutineId: next.length ? next[0].id : null });
+  };
+
   isCardio(m) { return !!m && m.group === 'Cardio'; }
   activeIsCardio() { return this.isCardio(this.state.machines.find(m => m.id === this.state.activeId)); }
 
-  // ── set drafting ──
   lastWeight(id) { const s = this.state.logs[id] || []; if (!s.length) return 20; const l = s[s.length - 1]; return Math.max.apply(null, l.sets.map(x => x.weight)); }
   lastCardio(id) { const s = this.state.logs[id] || []; if (!s.length) return { duration: 20, distance: 0, calories: 0 }; const l = s[s.length - 1], last = l.sets[l.sets.length - 1] || {}; return { duration: last.duration || 20, distance: last.distance || 0, calories: last.calories || 0 }; }
   addSet = () => this.setState({ draft: this.state.draft.concat([ this.activeIsCardio() ? this.lastCardio(this.state.activeId) : { reps: 10, weight: this.lastWeight(this.state.activeId) } ]) });
@@ -493,16 +824,14 @@ class Component extends DCLogic {
     this.save({ logs, draft: [] });
   };
 
-  // ── add machine ──
   onAddName = (e) => this.setState({ addName: e.target.value });
   handlePhoto = (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => this.setState({ addPhoto: r.result }); r.readAsDataURL(f); };
   saveMachine = () => {
     const n = this.state.addName.trim(); if (!n) return;
-    const m = { id: 'c' + Date.now(), name: n, group: this.state.addGroup, fav: false, photo: this.state.addPhoto };
-    this.save({ machines: this.state.machines.concat([m]), addName: '', addPhoto: null, screen: 'home' });
+    const m = { id: 'c' + Date.now(), name: n, group: this.state.addGroup, photo: this.state.addPhoto };
+    this.save({ machines: this.state.machines.concat([m]), addName: '', addPhoto: null, tab: 'library', screen: 'home' });
   };
 
-  // ── settings ──
   setThemeLight = () => this.save({ theme: 'light' });
   setThemeDark = () => this.save({ theme: 'dark' });
   setUnitKg = () => this.save({ unit: 'kg' });
@@ -514,6 +843,17 @@ class Component extends DCLogic {
   sumField(session, f) { return session.sets.reduce((a, x) => a + (x[f] || 0), 0); }
   fmtDate(iso) { try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase(); } catch (e) { return iso; } }
   fmtPace(minPerUnit) { if (!isFinite(minPerUnit) || minPerUnit <= 0) return '—'; let m = Math.floor(minPerUnit), s = Math.round((minPerUnit - m) * 60); if (s === 60) { m += 1; s = 0; } return m + ':' + String(s).padStart(2, '0'); }
+
+  lastDetail(m) {
+    const sess = this.state.logs[m.id] || [];
+    const last = sess.length ? sess[sess.length - 1] : null;
+    if (!last) return '—';
+    if (this.isCardio(m)) {
+      const dist = this.sumField(last, 'distance');
+      return dist > 0 ? this.dispDist(dist) + ' ' + this.distUnit() : this.sumField(last, 'duration') + ' min';
+    }
+    return this.dispW(Math.max.apply(null, last.sets.map(s => s.weight))) + ' ' + this.state.unit;
+  }
 
   iconKey(name, group) {
     const n = (name || '').toLowerCase();
@@ -543,6 +883,15 @@ class Component extends DCLogic {
     return g[group] || 'press';
   }
 
+  obCardStyle(on) {
+    return `display:flex;align-items:flex-start;gap:13px;width:100%;text-align:left;padding:16px 16px;border-radius:8px;cursor:pointer;background:${on ? 'var(--surface)' : 'transparent'};border:1.5px solid ${on ? 'var(--accent)' : 'var(--border)'};`;
+  }
+  obDotStyle(on) {
+    return `flex-shrink:0;margin-top:2px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:${on ? '#fff' : 'transparent'};border:1.5px solid ${on ? 'var(--accent)' : 'var(--border)'};background:${on ? 'var(--accent)' : 'transparent'};`;
+  }
+  obUnitStyle(on) {
+    return `flex:1;background:${on ? 'var(--accent)' : 'transparent'};color:${on ? '#fff' : 'var(--muted)'};border:1.5px solid ${on ? 'var(--accent)' : 'var(--border)'};font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;padding:16px;border-radius:6px;cursor:pointer;`;
+  }
   brandMark(c, a) {
     const cell = 56, R = 25, sx = 512 - 6 * cell, sy = 512 - 4 * cell;
     const dots = []; const add = (col, row, red) => dots.push([col, row, red]);
@@ -557,30 +906,108 @@ class Component extends DCLogic {
 
   machineIcon(name, group, c, a) {
     const W = `fill="${a}" stroke="none"`;
+    // Machine equipment illustrations — line-art style, 40×40 viewBox
     const P = {
-      press: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v9"/><path d="M20 21l-4 8"/><path d="M20 21l4 8"/><path d="M20 14l-6-3"/><path d="M20 14l6-3"/><path d="M11 11h18"/><circle cx="11" cy="11" r="2.4" ${W}/><circle cx="29" cy="11" r="2.4" ${W}/>`,
-      curl: `<circle cx="18" cy="9" r="2.6"/><path d="M18 12v10"/><path d="M18 22l-4 7"/><path d="M18 22l4 7"/><path d="M18 14l4 5"/><path d="M22 19l-3-4"/><circle cx="19" cy="14.5" r="2.4" ${W}/>`,
-      lateral: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14h-9"/><path d="M20 14h9"/><circle cx="10" cy="14" r="2.4" ${W}/><circle cx="30" cy="14" r="2.4" ${W}/>`,
-      fly: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v10"/><path d="M20 22l-4 7"/><path d="M20 22l4 7"/><path d="M20 14c-6 0-9 2-9 6"/><path d="M20 14c6 0 9 2 9 6"/><circle cx="11" cy="20" r="2.4" ${W}/><circle cx="29" cy="20" r="2.4" ${W}/>`,
-      pulldown: `<path d="M12 7h16"/><circle cx="12" cy="7" r="2.2" ${W}/><circle cx="28" cy="7" r="2.2" ${W}/><circle cx="20" cy="15" r="2.6"/><path d="M20 18v6"/><path d="M20 18l-5-9"/><path d="M20 18l5-9"/><path d="M20 24l-4 6"/><path d="M20 24l5 3v3"/>`,
-      row: `<path d="M30 7v25"/><circle cx="15" cy="12" r="2.6"/><path d="M15 15v6"/><path d="M15 21h7l3 8"/><path d="M15 16h9"/><circle cx="24" cy="16" r="2.4" ${W}/><path d="M26 16h4"/>`,
-      pullup: `<path d="M9 8h22"/><path d="M16 8v3"/><path d="M24 8v3"/><circle cx="20" cy="14" r="2.6"/><path d="M16 11l4 3 4-3"/><path d="M20 17v8"/><path d="M20 25l-3 6"/><path d="M20 25l3 6"/>`,
-      backext: `<path d="M7 31l12-7"/><circle cx="16" cy="18" r="2.6"/><path d="M16 21l8 5"/><path d="M24 26l6-2"/><path d="M16 21l-3 8"/><circle cx="30" cy="24" r="2.4" ${W}/>`,
-      legpress: `<path d="M8 30v-7a2 2 0 0 1 2-2h3"/><path d="M8 30h8"/><circle cx="12" cy="17" r="2.5"/><path d="M14 21l10-6"/><path d="M24 15l5-3"/><path d="M26 8l6 4-4 6z" ${W}/>`,
-      legext: `<path d="M10 13v11"/><path d="M10 24h6"/><circle cx="13" cy="10" r="2.4"/><path d="M16 24h5"/><path d="M21 24l8-3"/><circle cx="29" cy="21" r="2.4" ${W}/>`,
-      legcurl: `<path d="M7 27h16"/><circle cx="11" cy="22.5" r="2.4"/><path d="M13 24h9"/><path d="M22 24l3-7"/><circle cx="25" cy="17" r="2.4" ${W}/>`,
-      squat: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v6"/><path d="M13 12h14"/><circle cx="13" cy="12" r="2.2" ${W}/><circle cx="27" cy="12" r="2.2" ${W}/><path d="M20 18l-5 5v6"/><path d="M20 18l5 5v6"/>`,
-      calf: `<circle cx="20" cy="9" r="2.6"/><path d="M20 12v13"/><path d="M14 12h12"/><circle cx="14" cy="12" r="2.2" ${W}/><circle cx="26" cy="12" r="2.2" ${W}/><path d="M20 25l-4 5"/><path d="M20 25l4 5"/><path d="M14 30h12"/>`,
-      pushdown: `<path d="M12 7h16"/><circle cx="20" cy="9.5" r="2.6"/><path d="M20 12.5v8"/><path d="M20 20.5l-4 7"/><path d="M20 20.5l4 7"/><path d="M20 15l-4 4v4"/><path d="M16 9.5v5.5"/><circle cx="16" cy="23" r="2.4" ${W}/>`,
-      crunch: `<path d="M7 29h18"/><path d="M20 28l3-5"/><path d="M20 28l-6-4"/><circle cx="12" cy="20" r="2.6"/><path d="M14 22l5 5"/><path d="M14 21l5-1"/>`,
-      run: `<circle cx="20" cy="8" r="2.6"/><path d="M20 11l-2 7"/><path d="M20 13l5-1"/><path d="M20 13l-4 3"/><path d="M18 18l5 4"/><path d="M18 18l-4 7"/><path d="M6 31h28"/>`,
-      bike: `<circle cx="11" cy="28" r="4.5"/><circle cx="29" cy="28" r="4.5"/><path d="M11 28h9l4-11 5 11"/><path d="M19 17h6"/><path d="M25 17l3-3"/>`,
-      rower: `<path d="M6 30h28"/><circle cx="9" cy="25" r="3.5"/><path d="M12 25h7"/><path d="M19 25l7-4"/><path d="M26 21v-3"/><path d="M24 18h4"/>`,
-      stairs: `<path d="M7 31h7v-6h7v-6h7v-6h5"/>`,
-      cardio: `<path d="M4 20h7l2-4 3 9 2-5h18"/>`,
+      // Chest Press Machine: weight stack right, seat+backrest left, press arm
+      press: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="29" y="6" width="7" height="26" rx="1"/><rect x="29" y="13" width="7" height="5" fill="${a}" stroke="none"/><line x1="29" y1="32" x2="8" y2="32"/><line x1="8" y1="32" x2="8" y2="37"/><line x1="16" y1="37" x2="16" y2="30"/><rect x="10" y="28" width="12" height="3.5" rx="1.5"/><rect x="6" y="15" width="3.5" height="14" rx="1.5"/><line x1="10" y1="29" x2="16" y2="29"/><path d="M21 23 L29 17"/><line x1="16" y1="20" x2="26" y2="26"/>`,
+      // Preacher Curl: angled pad, seat, weight stack
+      curl: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="29" y="7" width="6" height="24" rx="1"/><rect x="29" y="13" width="6" height="6" fill="${a}" stroke="none"/><line x1="10" y1="37" x2="29" y2="37"/><line x1="13" y1="37" x2="13" y2="29"/><rect x="8" y="27" width="10" height="3.5" rx="1.5"/><path d="M13 29 Q14 16 26 16" stroke-width="2.5"/><rect x="23" y="14" width="7" height="4" rx="1.5" fill="${a}" stroke="none"/>`,
+      // Lateral Raise Machine: center post, seat, two wing pads
+      lateral: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="9" x2="20" y2="37"/><rect x="16" y="23" width="8" height="10" rx="1"/><rect x="16" y="24" width="8" height="4" rx="1" fill="${a}" stroke="none"/><path d="M20 20 L7 25"/><path d="M20 20 L33 25"/><rect x="4" y="23" width="5" height="4" rx="1" fill="${a}" stroke="none"/><rect x="31" y="23" width="5" height="4" rx="1" fill="${a}" stroke="none"/>`,
+      // Cable Crossover / Pec Deck: two tall columns, cables to center handles
+      fly: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="5" x2="5" y2="37"/><line x1="35" y1="5" x2="35" y2="37"/><line x1="5" y1="5" x2="35" y2="5"/><rect x="2" y="26" width="6" height="12" rx="0.5" fill="${a}" stroke="none"/><rect x="32" y="26" width="6" height="12" rx="0.5" fill="${a}" stroke="none"/><line x1="5" y1="11" x2="15" y2="21"/><line x1="35" y1="11" x2="25" y2="21"/><circle cx="15" cy="21" r="3" fill="${a}" stroke="none"/><circle cx="25" cy="21" r="3" fill="${a}" stroke="none"/>`,
+      // Lat Pulldown: A-frame, overhead bar with grips, seat+knee pad, weight stack
+      pulldown: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="6" y1="5" x2="6" y2="37"/><line x1="34" y1="5" x2="34" y2="37"/><line x1="6" y1="5" x2="34" y2="5"/><rect x="32" y="8" width="7" height="22" rx="1" fill="${a}" stroke="none"/><line x1="20" y1="5" x2="20" y2="13"/><line x1="11" y1="13" x2="29" y2="13"/><rect x="9" y="11" width="4" height="4" rx="1" fill="${a}" stroke="none"/><rect x="27" y="11" width="4" height="4" rx="1" fill="${a}" stroke="none"/><rect x="13" y="27" width="14" height="4" rx="1.5"/><rect x="11" y="31" width="18" height="3.5" rx="1.5"/>`,
+      // Seated Row: weight stack left, horizontal cable, seat+footrest
+      row: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="3" y="11" width="7" height="22" rx="1"/><rect x="3" y="18" width="7" height="6" fill="${a}" stroke="none"/><line x1="10" y1="22" x2="33" y2="22"/><circle cx="21" cy="22" r="3" fill="${a}" stroke="none"/><rect x="19" y="26" width="10" height="3.5" rx="1.5"/><line x1="24" y1="30" x2="24" y2="37"/><line x1="33" y1="22" x2="33" y2="37"/><rect x="8" y="33" width="10" height="3" rx="1.5"/>`,
+      // Assisted Pull-Up: large frame, inner posts, knee pad, counterweight
+      pullup: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="6" y1="5" x2="6" y2="37"/><line x1="34" y1="5" x2="34" y2="37"/><line x1="6" y1="5" x2="34" y2="5"/><line x1="13" y1="5" x2="13" y2="27"/><line x1="27" y1="5" x2="27" y2="27"/><rect x="13" y="27" width="14" height="3.5" rx="1.5"/><rect x="32" y="9" width="7" height="20" rx="1" fill="${a}" stroke="none"/>`,
+      // Back Extension / Roman Chair: angled beam, hip pad, footrest
+      backext: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="37" x2="5" y2="20"/><path d="M5 20 L27 9"/><rect x="22" y="7" width="14" height="5" rx="1.5" fill="${a}" stroke="none"/><rect x="9" y="25" width="10" height="4.5" rx="1.5"/><line x1="5" y1="27" x2="9" y2="27"/><line x1="27" y1="9" x2="27" y2="37"/>`,
+      // Leg Press: reclined seat, angled footplate
+      legpress: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="37" x2="5" y2="22"/><path d="M5 22 L22 9"/><rect x="18" y="7" width="16" height="5" rx="1.5" fill="${a}" stroke="none"/><rect x="3" y="21" width="12" height="3.5" rx="1.5"/><line x1="15" y1="22" x2="15" y2="37"/><line x1="5" y1="29" x2="15" y2="29"/>`,
+      // Leg Extension: seat frame, weight stack, extending leg pad
+      legext: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="8" y1="10" x2="8" y2="37"/><line x1="27" y1="10" x2="27" y2="37"/><rect x="8" y="18" width="19" height="4" rx="1.5"/><rect x="31" y="6" width="5" height="18" rx="1" fill="${a}" stroke="none"/><line x1="27" y1="22" x2="32" y2="22"/><path d="M17 22 L24 33"/><rect x="21" y="32" width="8" height="4" rx="1.5" fill="${a}" stroke="none"/>`,
+      // Leg Curl (lying): arched frame, prone pad, curl roller
+      legcurl: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="5" y1="17" x2="5" y2="37"/><line x1="35" y1="17" x2="35" y2="37"/><path d="M5 17 Q20 8 35 17"/><rect x="12" y="13" width="16" height="5" rx="1.5" fill="${a}" stroke="none"/><path d="M28 31 Q35 26 35 19"/><rect x="25" y="29" width="8" height="4" rx="1.5" fill="${a}" stroke="none"/>`,
+      // Smith Machine / Squat Rack: two vertical rails, barbell hooks, cross bar
+      squat: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="7" y1="4" x2="7" y2="37"/><line x1="33" y1="4" x2="33" y2="37"/><line x1="7" y1="4" x2="33" y2="4"/><line x1="5" y1="18" x2="35" y2="18"/><rect x="4" y="16" width="6" height="5" rx="1" fill="${a}" stroke="none"/><rect x="30" y="16" width="6" height="5" rx="1" fill="${a}" stroke="none"/><line x1="7" y1="28" x2="33" y2="28"/>`,
+      // Calf Raise: inverted U frame, shoulder pads, step platform
+      calf: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="5" x2="20" y2="37"/><line x1="7" y1="5" x2="33" y2="5"/><line x1="7" y1="5" x2="7" y2="14"/><line x1="33" y1="5" x2="33" y2="14"/><line x1="7" y1="14" x2="33" y2="14"/><rect x="13" y="12" width="14" height="4" rx="1.5" fill="${a}" stroke="none"/><rect x="12" y="32" width="16" height="5" rx="2"/>`,
+      // Cable Pushdown / Tricep station: cable tower, weight stack, handle bar
+      pushdown: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="4" x2="20" y2="37"/><line x1="7" y1="4" x2="33" y2="4"/><line x1="7" y1="4" x2="7" y2="19"/><line x1="33" y1="4" x2="33" y2="19"/><rect x="17" y="7" width="6" height="20" rx="1" fill="${a}" stroke="none"/><line x1="20" y1="27" x2="14" y2="33"/><line x1="20" y1="27" x2="26" y2="33"/><line x1="12" y1="33" x2="28" y2="33"/>`,
+      // Ab Crunch Machine: seat, center post, weight stack, curved arm handles
+      crunch: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="20" y1="7" x2="20" y2="37"/><rect x="29" y="9" width="6" height="20" rx="1" fill="${a}" stroke="none"/><line x1="20" y1="18" x2="29" y2="14"/><rect x="11" y="26" width="18" height="4" rx="1.5"/><line x1="20" y1="26" x2="20" y2="37"/><path d="M14 24 L8 16"/><path d="M26 24 L32 16"/>`,
+      // Treadmill: wide belt deck, angled console post, display
+      run: `<line x1="3" y1="37" x2="37" y2="37"/><rect x="4" y="21" width="26" height="8" rx="1.5"/><line x1="28" y1="21" x2="34" y2="6"/><rect x="30" y="4" width="8" height="6" rx="1"/><line x1="4" y1="29" x2="4" y2="37"/><line x1="30" y1="29" x2="30" y2="37"/>`,
+      // Stationary Bike: flywheel, frame, seat, handlebars
+      bike: `<line x1="3" y1="37" x2="37" y2="37"/><circle cx="29" cy="28" r="7"/><circle cx="29" cy="28" r="2.5" fill="${a}" stroke="none"/><line x1="10" y1="37" x2="21" y2="23"/><line x1="21" y1="23" x2="29" y2="28"/><line x1="21" y1="23" x2="17" y2="14"/><line x1="13" y1="13" x2="21" y2="13"/><line x1="21" y1="23" x2="29" y2="17"/><line x1="26" y1="14" x2="33" y2="14"/>`,
+      // Rowing Machine: angled rail, seat back, long pull handle
+      rower: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="4" y1="27" x2="36" y2="31"/><line x1="4" y1="27" x2="4" y2="37"/><line x1="36" y1="31" x2="36" y2="37"/><rect x="4" y="20" width="10" height="7" rx="1.5"/><rect x="4" y="21" width="10" height="3.5" rx="1" fill="${a}" stroke="none"/><line x1="14" y1="24" x2="35" y2="21"/><circle cx="25" cy="27" r="2.5"/>`,
+      // Stair Climber: tall rails, alternating step pads
+      stairs: `<line x1="3" y1="37" x2="37" y2="37"/><line x1="8" y1="5" x2="8" y2="37"/><line x1="32" y1="5" x2="32" y2="37"/><line x1="8" y1="5" x2="32" y2="5"/><rect x="8" y="9" width="10" height="5" rx="0.5" fill="${a}" stroke="none"/><rect x="22" y="17" width="10" height="5" rx="0.5" fill="${a}" stroke="none"/><rect x="8" y="25" width="10" height="5" rx="0.5" fill="${a}" stroke="none"/><line x1="8" y1="14" x2="22" y2="17"/><line x1="22" y1="22" x2="8" y2="25"/>`,
+      // Elliptical Trainer: oval foot path, tall pole handles, foot pivots
+      cardio: `<line x1="3" y1="37" x2="37" y2="37"/><ellipse cx="20" cy="31" rx="13" ry="5"/><line x1="11" y1="27" x2="8" y2="7"/><line x1="29" y1="27" x2="32" y2="7"/><line x1="6" y1="9" x2="34" y2="9"/><line x1="8" y1="7" x2="8" y2="20"/><line x1="32" y1="7" x2="32" y2="20"/><circle cx="9" cy="36" r="3" fill="${a}" stroke="none"/><circle cx="31" cy="36" r="3" fill="${a}" stroke="none"/>`,
     }[this.iconKey(name, group)];
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" stroke="${c}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${P}</svg>`;
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
+  // ── animated how-to demonstration ──
+  // Maps the machine's movement (via iconKey) onto one of a set of looping
+  // SVG/SMIL animations that mimic the rep so beginners recognise the motion.
+  demoMotion(name, group) {
+    const k = this.iconKey(name, group);
+    const map = {
+      press: 'press', curl: 'curl', pushdown: 'pushdown', pulldown: 'pulldown', pullup: 'pulldown',
+      row: 'row', rower: 'row', fly: 'fly', lateral: 'fly', legpress: 'legpress', legext: 'legext',
+      legcurl: 'legcurl', squat: 'squat', calf: 'squat', backext: 'flex', crunch: 'flex',
+      run: 'run', cardio: 'run', stairs: 'run', bike: 'bike',
+    };
+    return map[k] || 'press';
+  }
+
+  exerciseDemoSVG(name, group, S, A) {
+    const E = 'calcMode="spline" keyTimes="0;0.5;1" keySplines="0.42 0 0.58 1;0.42 0 0.58 1"';
+    const ground = `<line x1="20" y1="152" x2="180" y2="152" stroke="${S}" stroke-width="2" opacity="0.3"/>`;
+    const arrowUp = (x, y) => `<path d="M${x} ${y} L${x} ${y-20} M${x-5} ${y-14} L${x} ${y-20} L${x+5} ${y-14}" stroke="${A}" stroke-width="2.5" opacity="0.85"/>`;
+    const M = {
+      press: `${ground}<path d="M64 152 v-30 h30" stroke="${S}" stroke-width="3"/><circle cx="104" cy="74" r="9" fill="${S}" stroke="none"/><path d="M104 83 L99 118"/><path d="M99 118 L68 122"/><path d="M99 118 L130 124 L130 150"/><g><animateTransform attributeName="transform" type="rotate" values="0 100 91;-40 100 91;0 100 91" dur="1.7s" repeatCount="indefinite" ${E}/><path d="M100 91 L90 107 L122 107"/><line x1="122" y1="97" x2="122" y2="119" stroke="${A}" stroke-width="6"/></g>${arrowUp(150,104)}`,
+      curl: `${ground}<circle cx="92" cy="40" r="9" fill="${S}" stroke="none"/><path d="M92 49 L92 106"/><path d="M92 106 L80 150"/><path d="M92 106 L104 150"/><path d="M92 62 L112 92"/><g><animateTransform attributeName="transform" type="rotate" values="0 112 92;-118 112 92;0 112 92" dur="1.7s" repeatCount="indefinite" ${E}/><path d="M112 92 L112 120"/><circle cx="112" cy="124" r="7" fill="${A}" stroke="none"/></g>${arrowUp(140,118)}`,
+      pushdown: `${ground}<line x1="118" y1="18" x2="118" y2="52" stroke="${A}" stroke-width="3"/><circle cx="92" cy="44" r="9" fill="${S}" stroke="none"/><path d="M92 53 L92 108"/><path d="M92 108 L80 150"/><path d="M92 108 L104 150"/><path d="M92 66 L110 88"/><g><animateTransform attributeName="transform" type="rotate" values="0 110 88;72 110 88;0 110 88" dur="1.6s" repeatCount="indefinite" ${E}/><path d="M110 88 L110 60"/><line x1="104" y1="58" x2="116" y2="58" stroke="${A}" stroke-width="5"/></g><path d="M140 96 L140 116 M135 110 L140 116 L145 110" stroke="${A}" stroke-width="2.5" opacity="0.85"/>`,
+      pulldown: `${ground}<circle cx="102" cy="86" r="9" fill="${S}" stroke="none"/><path d="M102 95 L100 126"/><path d="M100 126 L74 130"/><path d="M100 126 L128 130 L128 150"/><g><animateTransform attributeName="transform" type="translate" values="0 0;0 28;0 0" dur="1.7s" repeatCount="indefinite" ${E}/><line x1="74" y1="44" x2="130" y2="44" stroke="${A}" stroke-width="6"/><path d="M82 46 L98 80"/><path d="M122 46 L106 80"/></g><path d="M150 70 L150 90 M145 84 L150 90 L155 84" stroke="${A}" stroke-width="2.5" opacity="0.85"/>`,
+      row: `${ground}<path d="M150 96 L168 96"/><circle cx="78" cy="70" r="9" fill="${S}" stroke="none"/><path d="M78 79 L80 120"/><path d="M80 120 L66 150"/><path d="M80 120 L150 120"/><g><animateTransform attributeName="transform" type="translate" values="0 0;-24 0;0 0" dur="1.7s" repeatCount="indefinite" ${E}/><path d="M122 96 L90 84"/><line x1="122" y1="86" x2="122" y2="108" stroke="${A}" stroke-width="6"/><path d="M122 96 L150 96"/></g><path d="M104 56 L86 56 M92 51 L86 56 L92 61" stroke="${A}" stroke-width="2.5" opacity="0.85"/>`,
+      fly: `${ground}<circle cx="100" cy="42" r="9" fill="${S}" stroke="none"/><path d="M100 51 L100 104"/><path d="M100 104 L88 150"/><path d="M100 104 L112 150"/><g><animateTransform attributeName="transform" type="rotate" values="0 100 64;-66 100 64;0 100 64" dur="1.8s" repeatCount="indefinite" ${E}/><path d="M100 64 L78 96"/><circle cx="76" cy="99" r="6.5" fill="${A}" stroke="none"/></g><g><animateTransform attributeName="transform" type="rotate" values="0 100 64;66 100 64;0 100 64" dur="1.8s" repeatCount="indefinite" ${E}/><path d="M100 64 L122 96"/><circle cx="124" cy="99" r="6.5" fill="${A}" stroke="none"/></g>${arrowUp(62,92)}${arrowUp(138,92)}`,
+      legpress: `${ground}<circle cx="58" cy="92" r="9" fill="${S}" stroke="none"/><path d="M58 101 L58 124"/><path d="M50 124 h18" stroke-width="3"/><g><animateTransform attributeName="transform" type="translate" values="0 0;26 -16;0 0" dur="1.8s" repeatCount="indefinite" ${E}/><path d="M64 116 L104 96"/><path d="M104 96 L120 70"/><line x1="116" y1="62" x2="138" y2="78" stroke="${A}" stroke-width="6"/></g><path d="M150 56 L166 44 M150 51 L166 44 L160 57" stroke="${A}" stroke-width="2.5" opacity="0.85"/>`,
+      legext: `${ground}<path d="M70 152 v-34 h34" stroke="${S}" stroke-width="3"/><circle cx="92" cy="78" r="9" fill="${S}" stroke="none"/><path d="M92 87 L94 118"/><path d="M94 118 L124 120"/><g><animateTransform attributeName="transform" type="rotate" values="0 124 120;-74 124 120;0 124 120" dur="1.7s" repeatCount="indefinite" ${E}/><path d="M124 120 L124 150"/><line x1="119" y1="148" x2="129" y2="148" stroke="${A}" stroke-width="6"/></g>${arrowUp(150,120)}`,
+      legcurl: `${ground}<circle cx="56" cy="116" r="9" fill="${S}" stroke="none"/><path d="M65 118 L120 121"/><path d="M120 121 L150 122"/><g><animateTransform attributeName="transform" type="rotate" values="0 150 122;-82 150 122;0 150 122" dur="1.7s" repeatCount="indefinite" ${E}/><path d="M150 122 L178 122"/><line x1="176" y1="117" x2="176" y2="127" stroke="${A}" stroke-width="6"/></g><path d="M150 90 L150 78 M145 84 L150 78 L155 84" stroke="${A}" stroke-width="2.5" opacity="0.85"/>`,
+      flex: `${ground}<path d="M118 150 L118 126 L150 126"/><g><animateTransform attributeName="transform" type="rotate" values="0 100 126;30 100 126;0 100 126" dur="1.6s" repeatCount="indefinite" ${E}/><path d="M100 126 L94 84"/><circle cx="92" cy="74" r="9" fill="${S}" stroke="none"/><path d="M97 96 L116 104"/></g><path d="M100 126 L124 126"/><path d="M100 92 L100 80 M95 86 L100 80 L105 86" stroke="${A}" stroke-width="2.5" opacity="0.85"/>`,
+      squat: `${ground}<g><animateTransform attributeName="transform" type="translate" values="0 0;0 16;0 0" dur="1.8s" repeatCount="indefinite" ${E}/><circle cx="100" cy="52" r="9" fill="${S}" stroke="none"/><path d="M100 61 L100 100"/><line x1="80" y1="64" x2="120" y2="64" stroke="${A}" stroke-width="6"/></g><path d="M100 100 L84 124 L84 150"/><path d="M100 100 L116 124 L116 150"/><path d="M150 92 L150 112 M145 106 L150 112 L155 106 M150 92 L150 72 M145 78 L150 72 L155 78" stroke="${A}" stroke-width="2.5" opacity="0.8"/>`,
+      run: `${ground}<line x1="60" y1="150" x2="150" y2="150" stroke="${A}" stroke-width="3" opacity="0.7"/><circle cx="104" cy="52" r="9" fill="${S}" stroke="none"/><path d="M104 61 L102 102"/><g><animateTransform attributeName="transform" type="rotate" values="24 102 102;-26 102 102;24 102 102" dur="0.7s" repeatCount="indefinite" ${E}/><path d="M102 102 L98 126 L92 146"/></g><g><animateTransform attributeName="transform" type="rotate" values="-26 102 102;24 102 102;-26 102 102" dur="0.7s" repeatCount="indefinite" ${E}/><path d="M102 102 L110 124 L118 144"/></g><g><animateTransform attributeName="transform" type="rotate" values="-30 104 70;30 104 70;-30 104 70" dur="0.7s" repeatCount="indefinite" ${E}/><path d="M104 70 L120 88"/></g><g><animateTransform attributeName="transform" type="rotate" values="30 104 70;-30 104 70;30 104 70" dur="0.7s" repeatCount="indefinite" ${E}/><path d="M104 70 L88 88"/></g>`,
+      bike: `${ground}<circle cx="64" cy="128" r="20" stroke="${S}" stroke-width="2.5"/><circle cx="150" cy="128" r="20" stroke="${S}" stroke-width="2.5"/><path d="M64 128 L108 128 L132 84 L150 128"/><path d="M108 128 L120 84 L132 84"/><circle cx="118" cy="58" r="9" fill="${S}" stroke="none"/><path d="M118 67 L108 100"/><g><animateTransform attributeName="transform" type="rotate" from="0 108 128" to="360 108 128" dur="1.3s" repeatCount="indefinite"/><line x1="108" y1="128" x2="108" y2="112" stroke="${A}" stroke-width="3"/><line x1="108" y1="128" x2="108" y2="144" stroke="${A}" stroke-width="3"/><circle cx="108" cy="110" r="4" fill="${A}" stroke="none"/><circle cx="108" cy="146" r="4" fill="${A}" stroke="none"/></g><path d="M108 100 L108 112"/>`,
+    };
+    const inner = M[this.demoMotion(name, group)] || M.press;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 168" width="100%" style="max-width:300px;display:block;" fill="none" stroke="${S}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  }
+
+  exerciseGuide(name, group) {
+    const m = this.demoMotion(name, group);
+    const G = {
+      press: { tempo: 'Controlled \u00b7 2s out, 2s back', tip: 'Keep your back against the pad and don\u2019t lock the elbows hard at the top.', steps: ['Sit with the handles at mid-chest height and grab them firmly.', 'Press forward until your arms are almost straight \u2014 exhale as you push.', 'Bend the elbows slowly to return to the start \u2014 inhale on the way back.', 'Keep shoulders down and core braced through every rep.'] },
+      curl: { tempo: 'Slow \u00b7 squeeze at the top', tip: 'Keep your elbows pinned to your sides \u2014 only the forearms move.', steps: ['Hold the handles with palms facing up, arms extended.', 'Curl the weight up toward your shoulders, squeezing the biceps.', 'Pause briefly at the top without swinging.', 'Lower under control all the way down before the next rep.'] },
+      pushdown: { tempo: 'Controlled \u00b7 2s down', tip: 'Pin your elbows to your ribs \u2014 only the forearms should move.', steps: ['Stand tall and grip the bar with elbows tucked in.', 'Push the bar down until your arms are fully straight.', 'Squeeze the triceps hard at the bottom.', 'Let the bar rise slowly back to chest height under control.'] },
+      pulldown: { tempo: 'Controlled \u00b7 2s down, 3s up', tip: 'Pull with your back, not your arms \u2014 lead with the elbows.', steps: ['Sit down and grab the bar wider than shoulder width.', 'Pull the bar to your upper chest, driving elbows down and back.', 'Squeeze your shoulder blades together at the bottom.', 'Let the bar rise slowly until arms are fully extended.'] },
+      row: { tempo: 'Controlled \u00b7 squeeze the back', tip: 'Keep your chest up and avoid yanking with your lower back.', steps: ['Sit with feet planted and grab the handle, back straight.', 'Pull the handle to your torso, drawing elbows past your sides.', 'Squeeze the shoulder blades together and hold for a beat.', 'Extend the arms slowly to the start, keeping tension.'] },
+      fly: { tempo: 'Slow \u00b7 smooth arc', tip: 'Move only at the shoulders and keep a soft bend in the elbows.', steps: ['Set up with a slight bend in your elbows and arms out.', 'Bring the handles together in a smooth, wide arc.', 'Squeeze the working muscle at the peak of the movement.', 'Return slowly along the same path \u2014 don\u2019t let it snap back.'] },
+      legpress: { tempo: 'Controlled \u00b7 never lock knees', tip: 'Keep your feet flat and don\u2019t let your lower back round off the seat.', steps: ['Sit back and place your feet shoulder-width on the platform.', 'Release the safeties and lower until knees reach about 90\u00b0.', 'Push through your heels to extend \u2014 stop just short of locking.', 'Lower under control for the next rep.'] },
+      legext: { tempo: 'Controlled \u00b7 squeeze at top', tip: 'Pause at the top and lower slowly \u2014 no kicking or swinging.', steps: ['Sit with the pad resting on your lower shins.', 'Straighten your legs until they\u2019re fully extended.', 'Squeeze your quads hard at the top for a beat.', 'Lower the weight slowly back to the start.'] },
+      legcurl: { tempo: 'Controlled \u00b7 squeeze the hamstrings', tip: 'Keep your hips down on the pad \u2014 don\u2019t let them lift.', steps: ['Position the pad just above your heels.', 'Curl your heels toward your glutes as far as comfortable.', 'Squeeze the hamstrings at the top of the curl.', 'Return slowly under control to full stretch.'] },
+      flex: { tempo: 'Slow \u00b7 controlled both ways', tip: 'Move smoothly and avoid jerking \u2014 let the target muscle do the work.', steps: ['Get into position and set the resistance pad against you.', 'Contract the muscle to bend through the full range.', 'Hold the squeeze briefly at the peak.', 'Reverse slowly back to the starting stretch.'] },
+      squat: { tempo: 'Controlled \u00b7 drive through heels', tip: 'Keep your chest up and knees tracking over your toes.', steps: ['Set the bar across your upper back and stand tall.', 'Bend at the hips and knees to lower under control.', 'Descend until your thighs are about parallel.', 'Drive up through your heels back to standing.'] },
+      run: { tempo: 'Steady rhythm \u00b7 find your pace', tip: 'Land softly mid-foot and keep an upright, relaxed posture.', steps: ['Start at a slow walk and let the belt reach speed.', 'Build to a comfortable, steady pace you can sustain.', 'Keep arms relaxed and swinging naturally at your sides.', 'Cool down with an easy walk before stepping off.'] },
+      bike: { tempo: 'Steady cadence \u00b7 smooth circles', tip: 'Adjust the seat so your knee stays slightly bent at the bottom.', steps: ['Set the seat height level with your hip and sit upright.', 'Begin pedalling in smooth, even circles.', 'Hold a steady cadence and add resistance to work harder.', 'Ease off gradually to cool down at the end.'] },
+    };
+    return G[m] || G.press;
   }
 
   renderVals() {
@@ -599,47 +1026,139 @@ class Component extends DCLogic {
       fontFamily: "'Space Mono', monospace", overflow: 'hidden', position: 'relative',
     });
 
-    // login
     const signup = S.authMode === 'signup';
 
-    // home machine rows
+    const today = this.todayIdx();
+    const days = this.DAYS.map((short, i) => {
+      const ids = this.dayMachineIds(i);
+      const sel = i === S.selectedDay;
+      return {
+        idx: i, short, count: ids.length,
+        onSelect: () => this.selectDay(i),
+        countText: ids.length ? String(ids.length) : '·',
+        pillStyle: `flex:1;min-width:0;padding:9px 0 8px;border-radius:7px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid ${sel ? 'var(--accent)' : 'var(--border)'};background:${sel ? 'var(--accent)' : 'var(--surface)'};`,
+        labelStyle: `font-family:'Doto',monospace;font-weight:700;font-size:14px;letter-spacing:0.04em;color:${sel ? '#fff' : (i === today ? 'var(--text)' : 'var(--muted)')};`,
+        countStyle: `font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:${sel ? 'rgba(255,255,255,0.85)' : (ids.length ? 'var(--accent)' : 'var(--muted)')};`,
+      };
+    });
+    const selIdx = S.selectedDay;
+    const selIds = this.dayMachineIds(selIdx);
+    const selDayLabel = this.DAYS_FULL[selIdx].toUpperCase() + (selIdx === today ? ' · TODAY' : '');
+    const dayName = S.dayNames[selIdx] || '';
+    const dayMachines = selIds.map((id, idx) => {
+      const m = S.machines.find(x => x.id === id);
+      if (!m) return null;
+      const canUp = idx > 0, canDown = idx < selIds.length - 1;
+      const arrow = (on) => `width:26px;height:21px;background:transparent;border:none;cursor:${on ? 'pointer' : 'default'};color:${on ? 'var(--muted)' : 'var(--border)'};display:flex;align-items:center;justify-content:center;padding:0;`;
+      return {
+        id: m.id, name: m.name, posLabel: String(idx + 1).padStart(2, '0'),
+        photo: m.photo || null, noPhoto: !m.photo,
+        icon: this.machineIcon(m.name, m.group, iconStroke, iconAccent),
+        detail: this.lastDetail(m),
+        onOpen: () => this.openMachine(m.id),
+        onUp: (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (canUp) this.moveInDay(selIdx, idx, -1); },
+        onDown: (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (canDown) this.moveInDay(selIdx, idx, 1); },
+        onRemove: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.removeFromDay(selIdx, m.id); },
+        upStyle: arrow(canUp), downStyle: arrow(canDown),
+      };
+    }).filter(Boolean);
+    const dayIsRest = dayMachines.length === 0;
+
+    // ── ROUTINES MODE ──
+    const orgWeek = S.orgMode !== 'routines';
+    const segStyle = (active) => `flex:1;background:${active ? 'var(--text)' : 'transparent'};color:${active ? 'var(--bg)' : 'var(--muted)'};border:1px solid ${active ? 'var(--text)' : 'var(--border)'};font-family:'Space Mono',monospace;font-weight:700;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;padding:11px;border-radius:5px;cursor:pointer;`;
+    const selRoutine = this.routineById(S.selectedRoutineId);
+    const selRoutineId = selRoutine ? selRoutine.id : null;
+    const routineChips = S.routineLists.map(r => {
+      const sel = r.id === S.selectedRoutineId;
+      return {
+        id: r.id, label: (r.name || 'Untitled').toUpperCase(), countText: String(r.machineIds.length),
+        onSelect: () => this.selectRoutine(r.id),
+        chipStyle: `flex:none;display:flex;align-items:center;gap:7px;border-radius:7px;cursor:pointer;border:1px solid ${sel ? 'var(--accent)' : 'var(--border)'};background:${sel ? 'var(--accent)' : 'var(--surface)'};color:${sel ? '#fff' : 'var(--text)'};font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:10px 13px;`,
+        countStyle: `font-family:'Doto',monospace;font-weight:700;font-size:12px;color:${sel ? 'rgba(255,255,255,0.85)' : 'var(--muted)'};`,
+      };
+    });
+    const routineName = selRoutine ? (selRoutine.name || '') : '';
+    const routineLabel = selRoutine ? (selRoutine.name || 'UNTITLED').toUpperCase() : '';
+    const routineMachines = selRoutine ? selRoutine.machineIds.map((id, idx) => {
+      const m = S.machines.find(x => x.id === id);
+      if (!m) return null;
+      const canUp = idx > 0, canDown = idx < selRoutine.machineIds.length - 1;
+      const arrow = (on) => `width:26px;height:21px;background:transparent;border:none;cursor:${on ? 'pointer' : 'default'};color:${on ? 'var(--muted)' : 'var(--border)'};display:flex;align-items:center;justify-content:center;padding:0;`;
+      return {
+        id: m.id, name: m.name, posLabel: String(idx + 1).padStart(2, '0'),
+        photo: m.photo || null, noPhoto: !m.photo,
+        icon: this.machineIcon(m.name, m.group, iconStroke, iconAccent),
+        detail: this.lastDetail(m),
+        onOpen: () => this.openMachine(m.id),
+        onUp: (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (canUp) this.moveInRoutine(selRoutineId, idx, -1); },
+        onDown: (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (canDown) this.moveInRoutine(selRoutineId, idx, 1); },
+        onRemove: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.removeFromRoutine(selRoutineId, m.id); },
+        upStyle: arrow(canUp), downStyle: arrow(canDown),
+      };
+    }).filter(Boolean) : [];
+    const routineIsEmpty = !!selRoutine && routineMachines.length === 0;
+
     const q = S.search.trim().toLowerCase();
     const filt = S.machines.filter(m => !q || m.name.toLowerCase().includes(q));
-    const mkRow = (m) => {
-      const sess = S.logs[m.id] || [];
-      const last = sess.length ? sess[sess.length - 1] : null;
-      let detail = '—';
-      if (last) {
-        if (this.isCardio(m)) {
-          const dist = this.sumField(last, 'distance');
-          detail = dist > 0 ? this.dispDist(dist) + ' ' + this.distUnit() : this.sumField(last, 'duration') + ' min';
-        } else {
-          detail = dispW(Math.max.apply(null, last.sets.map(s => s.weight))) + ' ' + ul;
-        }
-      }
+    const libRow = (m) => {
+      const tags = orgWeek ? this.machineDays(m.id) : this.machineRoutines(m.id).map(r => (r.name || '').toUpperCase());
+      const tagText = orgWeek ? tags.join(' ') : (tags.length + (tags.length === 1 ? ' LIST' : ' LISTS'));
       return {
-        id: m.id, name: m.name, fav: m.fav, notFav: !m.fav,
+        id: m.id, name: m.name,
         photo: m.photo || null, noPhoto: !m.photo,
-        initials: m.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase(),
         icon: this.machineIcon(m.name, m.group, iconStroke, iconAccent),
-        detail: detail,
+        detail: this.lastDetail(m),
+        hasDays: tags.length > 0, daysText: tagText,
         onOpen: () => this.openMachine(m.id),
-        onFav: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.toggleFav(m.id); },
       };
     };
     const groups = [];
-    const favs = filt.filter(m => m.fav).map(mkRow);
-    if (favs.length) groups.push({ group: 'Favorites', count: favs.length, items: favs });
-    this.GROUPS.forEach(g => { const items = filt.filter(m => m.group === g).map(mkRow); if (items.length) groups.push({ group: g, count: items.length, items }); });
-    filt.forEach(m => { if (this.GROUPS.indexOf(m.group) === -1) { let grp = groups.find(x => x.group === m.group); if (!grp) { grp = { group: m.group, count: 0, items: [] }; groups.push(grp); } grp.items.push(mkRow(m)); grp.count = grp.items.length; } });
+    this.GROUPS.forEach(g => { const items = filt.filter(m => m.group === g).map(libRow); if (items.length) groups.push({ group: g, count: items.length, items }); });
+    filt.forEach(m => { if (this.GROUPS.indexOf(m.group) === -1) { let grp = groups.find(x => x.group === m.group); if (!grp) { grp = { group: m.group, count: 0, items: [] }; groups.push(grp); } grp.items.push(libRow(m)); grp.count = grp.items.length; } });
 
-    // machine detail
+    const pq = S.pickerSearch.trim().toLowerCase();
+    const pfilt = S.machines.filter(m => !pq || m.name.toLowerCase().includes(pq));
+    const inTarget = (mid) => orgWeek ? this.inDay(selIdx, mid) : this.inRoutine(selRoutineId, mid);
+    const onPickToggle = (mid) => orgWeek ? this.toggleDayMachine(selIdx, mid) : this.toggleRoutineMachine(selRoutineId, mid);
+    const pickRow = (m) => {
+      const on = inTarget(m.id);
+      return {
+        id: m.id, name: m.name,
+        photo: m.photo || null, noPhoto: !m.photo,
+        icon: this.machineIcon(m.name, m.group, iconStroke, iconAccent),
+        checked: on, unchecked: !on,
+        onToggle: () => onPickToggle(m.id),
+      };
+    };
+    const pickerGroups = [];
+    this.GROUPS.forEach(g => { const items = pfilt.filter(m => m.group === g).map(pickRow); if (items.length) pickerGroups.push({ group: g, count: items.length, items }); });
+    pfilt.forEach(m => { if (this.GROUPS.indexOf(m.group) === -1) { let grp = pickerGroups.find(x => x.group === m.group); if (!grp) { grp = { group: m.group, count: 0, items: [] }; pickerGroups.push(grp); } grp.items.push(pickRow(m)); grp.count = grp.items.length; } });
+    const pickerCount = orgWeek ? selIds.length : (selRoutine ? selRoutine.machineIds.length : 0);
+    const pickerDoneLabel = pickerCount ? ('Done · ' + pickerCount + (pickerCount === 1 ? ' machine' : ' machines')) : 'Done';
+
     const am = S.machines.find(m => m.id === S.activeId) || null;
     const cardio = this.isCardio(am);
     let pr = '—', chart = { has: false, empty: true }, history = [], hasHistory = false;
-    let amName = '', amGroup = '', amFav = false, cardioStats = [];
+    let amName = '', amGroup = '', cardioStats = [];
+    const weekDays = this.DAYS.map((short, i) => {
+      const on = am ? this.inDay(i, am.id) : false;
+      return {
+        short, on,
+        onToggle: () => am && this.toggleDayMachine(i, am.id),
+        style: `flex:1;min-width:0;padding:11px 0;border-radius:6px;cursor:pointer;text-align:center;font-family:'Doto',monospace;font-weight:700;font-size:13px;letter-spacing:0.02em;border:1px solid ${on ? 'var(--accent)' : 'var(--border)'};background:${on ? 'var(--accent)' : 'transparent'};color:${on ? '#fff' : 'var(--muted)'};`,
+      };
+    });
+    const routineToggles = S.routineLists.map(r => {
+      const on = am ? this.inRoutine(r.id, am.id) : false;
+      return {
+        label: (r.name || 'Untitled').toUpperCase(),
+        onToggle: () => am && this.toggleRoutineMachine(r.id, am.id),
+        style: `padding:9px 13px;border-radius:6px;cursor:pointer;font-family:'Space Mono',monospace;font-weight:700;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;border:1px solid ${on ? 'var(--accent)' : 'var(--border)'};background:${on ? 'var(--accent)' : 'transparent'};color:${on ? '#fff' : 'var(--muted)'};`,
+      };
+    });
     if (am) {
-      amName = am.name; amGroup = am.group; amFav = am.fav;
+      amName = am.name; amGroup = am.group;
       const sess = (S.logs[am.id] || []).slice().sort((a, b) => a.date < b.date ? -1 : 1);
       const sr = sess.map(s => ({ date: s.date, val: cardio ? this.sumField(s, 'duration') : Math.max.apply(null, s.sets.map(x => x.weight)) }));
       if (sr.length) {
@@ -715,12 +1234,30 @@ class Component extends DCLogic {
 
     const groupChips = this.GROUPS.map(g => ({ name: g, active: g === S.addGroup, inactive: g !== S.addGroup, onPick: () => this.setState({ addGroup: g }) }));
 
+    const guide = am ? this.exerciseGuide(am.name, am.group) : { tempo: '', steps: [], tip: '' };
+    const demoSvg = am ? this.exerciseDemoSVG(am.name, am.group, iconStroke, iconAccent) : '';
+    const howToAnim = '<div style="width:100%;display:flex;justify-content:center;">' + demoSvg + '</div>';
+    const howToSteps = guide.steps.map((t, i) => ({ n: i + 1, text: t }));
+
+    const tabStyle = (active) => `flex:1;background:${active ? 'var(--text)' : 'transparent'};color:${active ? 'var(--bg)' : 'var(--muted)'};border:1px solid ${active ? 'var(--text)' : 'var(--border)'};font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:12px;border-radius:5px;cursor:pointer;`;
+
     return {
       shell, isDark,
       brandMark: this.brandMark(isDark ? '#f3f3f1' : '#111111', iconAccent),
       showLogin: S.screen === 'login', showHome: S.screen === 'home', showMachine: S.screen === 'machine',
-      showAdd: S.screen === 'add', showSettings: S.screen === 'settings',
-      // login
+      showAdd: S.screen === 'add', showSettings: S.screen === 'settings', showPicker: S.screen === 'picker',
+      showOnboarding: S.screen === 'onboarding',
+      obCardWeek: this.obCardStyle(S.obMode === 'week'), obCardRoutines: this.obCardStyle(S.obMode === 'routines'),
+      obWeekDot: this.obDotStyle(S.obMode === 'week'), obRoutinesDot: this.obDotStyle(S.obMode === 'routines'),
+      obUnitKg: this.obUnitStyle(S.obUnit === 'kg'), obUnitLb: this.obUnitStyle(S.obUnit === 'lb'),
+      setObModeWeek: () => this.setObMode('week'), setObModeRoutines: () => this.setObMode('routines'),
+      setObUnitKg: () => this.setObUnit('kg'), setObUnitLb: () => this.setObUnit('lb'),
+      finishOnboarding: this.finishOnboarding,
+      obReady: !!(S.obMode && S.obUnit),
+      obBtnLabel: (S.obMode && S.obUnit) ? 'Start Training →' : 'Choose both to continue',
+      obBtnStyle: (S.obMode && S.obUnit)
+        ? "width:100%;background:var(--accent);border:none;color:#fff;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;padding:16px;border-radius:4px;cursor:pointer;"
+        : "width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;padding:16px;border-radius:4px;text-align:center;cursor:default;",
       emailDraft: S.emailDraft, passwordDraft: S.passwordDraft,
       onEmailInput: this.onEmailInput, onPasswordInput: this.onPasswordInput,
       doAuth: this.doAuth, toggleAuthMode: this.toggleAuthMode, loginError: S.loginError,
@@ -728,21 +1265,44 @@ class Component extends DCLogic {
       authSubmitLabel: signup ? 'Create account →' : 'Sign in →',
       authTogglePrompt: signup ? 'Already have an account? ' : 'New here? ',
       authToggleAction: signup ? 'Sign in' : 'Create one',
-      // home
-      greeting: 'Hello, ' + (S.user || '').toUpperCase(), groups, search: S.search, onSearch: this.onSearch,
-      openSettings: this.openSettings, openAdd: this.openAdd, noResults: groups.length === 0,
-      // machine
-      goHome: this.goHome, amName, amGroup, amFav, amNotFav: !amFav, onToggleAmFav: () => am && this.toggleFav(am.id),
+      greeting: 'Hello, ' + (S.user || '').toUpperCase(),
+      homeTitle: S.tab === 'library' ? 'LIBRARY' : (orgWeek ? 'MY WEEK' : 'MY ROUTINES'),
+      tabWeek: S.tab === 'week', tabLibrary: S.tab === 'library',
+      goWeek: this.goWeek, goLibrary: this.goLibrary,
+      weekTabStyle: tabStyle(S.tab === 'week'), libTabStyle: tabStyle(S.tab === 'library'),
+      openSettings: this.openSettings, openAdd: this.openAdd, openPicker: this.openPicker,
+      days, selDayLabel, dayName, onDayNameInput: this.onDayNameInput,
+      dayMachines, dayIsRest,
+      modeWeek: orgWeek, modeRoutines: !orgWeek,
+      setModeWeek: this.setModeWeek, setModeRoutines: this.setModeRoutines,
+      unitModeWeekOn: orgWeek, unitModeWeekOff: !orgWeek,
+      unitModeRoutinesOn: !orgWeek, unitModeRoutinesOff: orgWeek,
+      orgModeHint: orgWeek
+        ? 'Plan a list of machines for each day of the week.'
+        : 'Plan named routines (e.g. Chest & Biceps) with no fixed day.',
+      routineChips, noRoutines: S.routineLists.length === 0,
+      hasSelRoutine: !!selRoutine, routineName, routineLabel,
+      onRoutineNameInput: this.renameRoutine,
+      createRoutine: this.createRoutine, deleteRoutine: this.deleteRoutine,
+      routineMachines, routineIsEmpty,
+      routineToggles, hasAnyRoutine: S.routineLists.length > 0, noAnyRoutine: S.routineLists.length === 0,
+      showAddBtn: orgWeek ? true : !!selRoutine,
+      groups, search: S.search, onSearch: this.onSearch, noResults: groups.length === 0,
+      pickerGroups, pickerSearch: S.pickerSearch, onPickerSearch: this.onPickerSearch,
+      pickerNoResults: pickerGroups.length === 0,
+      pickerDay: orgWeek ? this.DAYS_FULL[selIdx] : 'this routine', pickerName: orgWeek ? (dayName || ('Day ' + (selIdx + 1))) : (routineName || 'Untitled'),
+      pickerDoneLabel,
+      goHome: this.goHome, amName, amGroup, weekDays,
+      openHowTo: this.openHowTo, closeHowTo: this.closeHowTo, stop: this.stop, showHowTo: S.showHowTo,
+      howToAnim, howToSteps, howToTempo: guide.tempo, howToTip: guide.tip,
       pr, ul, chart, history, hasHistory, draftRows,
       heroStrength: !cardio, heroCardio: cardio, cardioStats,
       pbLabel, pbUnit, chartTitle, chartEmptyText, setsTitle, addSetLabel, cantSaveText, distUnit: this.distUnit(),
       onAddSet: this.addSet, onDup: this.duplicateLast, onSave: this.saveSession,
       canSave: S.draft.length > 0, cantSave: S.draft.length === 0,
-      // add
       addName: S.addName, onAddName: this.onAddName, groupChips,
       addPhoto: S.addPhoto, noAddPhoto: !S.addPhoto, handlePhoto: this.handlePhoto,
       onSaveMachine: this.saveMachine, canSaveMachine: S.addName.trim().length > 0, cantSaveMachine: S.addName.trim().length === 0,
-      // settings
       themeIsLight: !isDark, themeNotLight: isDark, themeIsDark: isDark, themeNotDark: !isDark,
       unitIsKg: ul === 'kg', unitNotKg: ul !== 'kg', unitIsLb: ul === 'lb', unitNotLb: ul !== 'lb',
       setThemeLight: this.setThemeLight, setThemeDark: this.setThemeDark, setUnitKg: this.setUnitKg, setUnitLb: this.setUnitLb,
