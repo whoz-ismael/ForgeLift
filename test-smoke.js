@@ -219,6 +219,13 @@ function check(name, cond) {
   check("chart rendered after first session", !!$("polyline"));
   check("persisted to profile", !!(currentProfile() && currentProfile().logs && currentProfile().logs.m0));
 
+  console.log("SAME-DAY MERGE");
+  click('[data-action="add-set"]');
+  click('[data-action="save-session"]');
+  await wait(20);
+  check("second save same day merges into one session", currentProfile().logs.m0.length === 1 && currentProfile().logs.m0[0].sets.length === 2);
+  check("history shows a single entry for the day", ($("#app").textContent.match(/SETS ·/g) || []).length === 1);
+
   console.log("CARDIO");
   click('[data-action="go-home"]');
   const tid = idByName("Treadmill");

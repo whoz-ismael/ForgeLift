@@ -306,7 +306,7 @@
         // Returning, onboarded user — restore data + plan + preferences.
         var lists = row.routineLists || [];
         setState({
-          machines: row.machines || [], logs: row.logs || {},
+          machines: row.machines || [], logs: normalizeLogs(row.logs),
           routine: row.routine || {}, dayNames: row.dayNames || {},
           routineLists: lists, selectedRoutineId: (lists[0] || {}).id || null,
           orgMode: row.orgMode || "week", selectedDay: todayIdx(), onboarded: true,
@@ -322,7 +322,7 @@
         var lists = (row && row.routineLists) || seeded.routineLists;
         setState({
           machines: hasData ? row.machines : seeded.machines,
-          logs: (row && row.logs) || {},
+          logs: normalizeLogs(row && row.logs),
           routine: (row && row.routine) || seeded.routine,
           dayNames: (row && row.dayNames) || seeded.dayNames,
           routineLists: lists, selectedRoutineId: (lists[0] || {}).id || null,
@@ -577,17 +577,37 @@
     }) });
   }
   function removeSet(i) { setState({ draft: state.draft.filter(function (_, j) { return j !== i; }) }); }
+  // A machine's sets for one calendar day are one session: merge any sessions
+  // that share a date (keeping first-seen order) so logging in several batches
+  // through the day still shows as a single history entry.
+  function mergeDaySessions(sessions) {
+    var out = [], byDate = {};
+    (sessions || []).forEach(function (s) {
+      if (!s || !s.date) return;
+      if (byDate[s.date]) { byDate[s.date].sets = byDate[s.date].sets.concat(s.sets || []); }
+      else { var copy = { date: s.date, sets: (s.sets || []).slice() }; byDate[s.date] = copy; out.push(copy); }
+    });
+    return out;
+  }
+  function normalizeLogs(logsObj) {
+    var out = {};
+    if (!logsObj || typeof logsObj !== "object") return out;
+    Object.keys(logsObj).forEach(function (k) {
+      out[k] = Array.isArray(logsObj[k]) ? mergeDaySessions(logsObj[k]) : logsObj[k];
+    });
+    return out;
+  }
   function saveSession() {
     var id = state.activeId, d = state.draft;
     if (!d.length) return;
     var cardio = activeIsCardio();
     var today = new Date().toISOString().slice(0, 10);
     var logs = Object.assign({}, state.logs);
-    logs[id] = (logs[id] || []).concat([{ date: today, sets: d.map(function (s) {
+    logs[id] = mergeDaySessions((logs[id] || []).concat([{ date: today, sets: d.map(function (s) {
       return cardio
         ? { duration: s.duration || 0, distance: s.distance || 0, calories: s.calories || 0 }
         : { reps: s.reps, weight: s.weight };
-    }) }]);
+    }) }]));
     setState({ logs: logs, draft: [] }, true);
   }
 
@@ -669,7 +689,7 @@
           : [];
         return { date: String((s && s.date) || ""), sets: sets };
       }).filter(function (s) { return s.sets.length; });
-      if (sessions.length) out[k] = sessions;
+      if (sessions.length) out[k] = mergeDaySessions(sessions);
     });
     return out;
   }
