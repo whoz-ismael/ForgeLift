@@ -1108,8 +1108,8 @@
         '<div style="display:flex;gap:8px;margin-top:16px;">' + tabBtn(state.tab === "week", "go-week", t("planTab")) + tabBtn(state.tab === "library", "go-library", t("libraryTab")) + '</div>' +
       '</div>';
 
-    if (state.tab === "library") return header + libraryBody(ul, iconStroke, iconAccent);
-    return header + planBody(iconStroke, iconAccent);
+    var body = state.tab === "library" ? libraryBody(ul, iconStroke, iconAccent) : planBody(iconStroke, iconAccent);
+    return '<div class="screen" style="display:flex;flex-direction:column;">' + header + body + '</div>';
   }
 
   // Library tab: full catalogue grouped by muscle, with day-assignment badges.
