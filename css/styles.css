@@ -93,3 +93,10 @@ input { font-family: 'Space Mono', monospace; }
 
 button { font-family: 'Space Mono', monospace; }
 .screen { height: 100%; }
+
+/* Flex children default to min-height:auto, which stops them shrinking below
+   their content height. On tall screens that breaks the flex:1 scroll region:
+   it grows to fit its content instead of scrolling, and the overflow gets
+   clipped by #app (overflow:hidden) — leaving the bottom of the page (and the
+   fixed action bar) unreachable. min-height:0 lets overflow:auto scroll. */
+.screen > div { min-height: 0; }
